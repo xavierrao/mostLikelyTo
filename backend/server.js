@@ -3,12 +3,18 @@ const http = require('http');
 const socketIo = require('socket.io');
 const fs = require('fs');
 const path = require('path');
+const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
-const questions = JSON.parse(fs.readFileSync('questions.json', 'utf8'));
+const io = socketIo(server, {
+    cors: {
+        origin: 'https://mlti.xavierrao.com',
+        methods: ['GET', 'POST']
+    }
+});
 
+app.use(cors());
 app.use(express.static(__dirname));
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
