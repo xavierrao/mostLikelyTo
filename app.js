@@ -15,7 +15,7 @@ const App = () => {
     const [votes, setVotes] = useState({});
 
     useEffect(() => {
-        const newSocket = io('https://most-likely-to-backend.onrender.com'); // Update with actual backend URL
+        const newSocket = io('https://mostlikelytoimposter.onrender.com'); // Update with actual backend URL
         setSocket(newSocket);
 
         newSocket.on('gameState', ({ state, players, mainQuestion, specialQuestion, gameId: receivedGameId, isSpecialPlayer, noMoreQuestions, owner, votes }) => {
