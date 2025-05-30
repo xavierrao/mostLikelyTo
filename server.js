@@ -9,9 +9,9 @@ const server = http.createServer(app);
 const io = socketIo(server);
 const questions = JSON.parse(fs.readFileSync('questions.json', 'utf8'));
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const games = {};
@@ -90,7 +90,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('vote', ({ gameId, playerName, votedPlayer }) => {
-        if (!games[groupId] || !games[gameId].players.includes(playerName)) return;
+        if (!games[gameId] || !games[gameId].players.includes(playerName)) return;
         const game = games[gameId];
         if (!game.players.includes(votedPlayer)) {
             socket.emit('error', 'Invalid vote');
