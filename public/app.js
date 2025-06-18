@@ -15,7 +15,7 @@ const App = () => {
     const [votes, setVotes] = useState({});
 
     useEffect(() => {
-        const newSocket = io(); // Relative path, connects to the same host
+        const newSocket = io(); // Put 'http://(IP):3000' inside io()
         setSocket(newSocket);
 
         newSocket.on('gameState', ({ state, players, mainQuestion, specialQuestion, gameId: receivedGameId, isSpecialPlayer, noMoreQuestions, owner, votes }) => {

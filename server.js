@@ -9,15 +9,25 @@ const server = http.createServer(app);
 const io = socketIo(server);
 const questions = JSON.parse(fs.readFileSync('questions.json', 'utf8'));
 
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public')));
+app.get('/app.js', (req, res) => {
+    console.log(`Serving app.js from: ${path.join(__dirname, 'public', 'app.js')}`);
+    res.sendFile(path.join(__dirname, 'public', 'app.js'), (err) => {
+        if (err) {
+            console.error(`Error serving app.js: ${err}`);
+            res.status(404).send('app.js not found');
+        }
+    });
+});
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    console.log(`Serving index.html`);
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 const games = {};
 
 function generateGameId() {
-    return Math.random().toString(36).substr(2, 9);
+    return Math.random().toString(36).substring(2, 9);
 }
 
 function selectQuestion(usedQuestionIds) {
@@ -89,18 +99,29 @@ io.on('connection', (socket) => {
         });
     });
 
-    socket.on('vote', ({ gameId, playerName, votedPlayer }) => {
-        if (!games[gameId] || !games[gameId].players.includes(playerName)) return;
+    socket.on('vote', ({ gameId, votedPlayer }) => {
+        if (!games[gameId] || !games[gameId].players.includes(socket.playerName)) return;
         const game = games[gameId];
-        if (!game.players.includes(votedPlayer)) {
-            socket.emit('error', 'Invalid vote');
+        if (game.state !== 'question') return;
+        if (!games[gameId].players.includes(votedPlayer)) {
+            socket.emit('error', 'Invalid player selected');
             return;
         }
-        game.votes[playerName] = votedPlayer;
-        console.log(`Game ${gameId}: ${playerName} voted for ${votedPlayer}`);
-        io.to(gameId).emit('gameState', { ...game, isSpecialPlayer: playerName === game.specialPlayer });
+        game.votes[socket.playerName] = votedPlayer;
+        console.log(`Game ${gameId}: ${socket.playerName} voted for ${votedPlayer}`);
         if (Object.keys(game.votes).length === game.players.length) {
             game.state = 'reveal';
+            game.players.forEach(player => {
+                const playerSocket = Array.from(io.sockets.sockets.values())
+                    .find(s => s.playerName === player && s.rooms.has(gameId));
+                if (playerSocket) {
+                    playerSocket.emit('gameState', {
+                        ...game,
+                        isSpecialPlayer: player === game.specialPlayer
+                    });
+                }
+            });
+        } else {
             game.players.forEach(player => {
                 const playerSocket = Array.from(io.sockets.sockets.values())
                     .find(s => s.playerName === player && s.rooms.has(gameId));
@@ -165,7 +186,6 @@ io.on('connection', (socket) => {
     });
 });
 
-const port = process.env.PORT || 3000;
-server.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+server.listen(3000, () => {
+    console.log('Server running on port 3000');
 });
