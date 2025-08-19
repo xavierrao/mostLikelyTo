@@ -2,251 +2,501 @@
     {
         "id": 1,
         "question": "Who is the most likely to get kicked off an airplane?",
-        "specialQuestion": "Who is the most likely to charm the flight crew?"
+        "specialQuestion": "Who is the most likely to adopt a pet in the next year?"
     },
     {
         "id": 2,
         "question": "Who is the most likely to become a drug addict?",
-        "specialQuestion": "Who is the most likely to start a recovery support group?"
+        "specialQuestion": "Who is the most likely to become a successful entrepreneur?"
     },
     {
         "id": 3,
         "question": "Who is the most likely to cancel plans last minute?",
-        "specialQuestion": "Who is the most likely to plan a spontaneous group outing?"
+        "specialQuestion": "Who is the most likely to win a national award?"
     },
     {
         "id": 4,
         "question": "Who is the most likely to not pay for dinner?",
-        "specialQuestion": "Who is the most likely to insist on splitting the bill evenly?"
+        "specialQuestion": "Who is the most likely to invent a new trend?"
     },
     {
         "id": 5,
         "question": "Who is the most likely to throw up on a night out?",
-        "specialQuestion": "Who is the most likely to organize a legendary bar crawl?"
+        "specialQuestion": "Who is the most likely to run a marathon?"
     },
     {
         "id": 6,
         "question": "Who is the most likely to not shower for a month?",
-        "specialQuestion": "Who is the most likely to obsess over their skincare routine?"
+        "specialQuestion": "Who is the most likely to get a perfect score on a quiz?"
     },
     {
         "id": 7,
         "question": "Who is the most likely to become homeless?",
-        "specialQuestion": "Who is the most likely to volunteer at a shelter?"
+        "specialQuestion": "Who is the most likely to get a spontaneous job offer?"
     },
     {
         "id": 8,
         "question": "Who is the most likely to not pay you back?",
-        "specialQuestion": "Who is the most likely to lend money without hesitation?"
+        "specialQuestion": "Who is the most likely to buy you a gift just because?"
     },
     {
         "id": 9,
         "question": "Who is the most likely to like a weird porn category?",
-        "specialQuestion": "Who is the most likely to debate adult entertainment trends?"
+        "specialQuestion": "Who is the most likely to be a master chef?"
     },
     {
         "id": 10,
         "question": "Who is the most likely to cut everyone off?",
-        "specialQuestion": "Who is the most likely to host a massive friend reunion?"
+        "specialQuestion": "Who is the most likely to start a new hobby every month?"
     },
     {
         "id": 11,
         "question": "Who is the most likely to handle spice well?",
-        "specialQuestion": "Who is the most likely to cook a spicy signature dish?"
+        "specialQuestion": "Who is the most likely to accidentally start a fire?"
     },
     {
         "id": 12,
         "question": "Who is the most likely to write an autobiography?",
-        "specialQuestion": "Who is the most likely to get their autobiography adapted into a movie?"
+        "specialQuestion": "Who is the most likely to sleep through an entire flight?"
     },
     {
         "id": 13,
         "question": "Who is the most likely to go all in on a hobby for 48 hours and never do it again?",
-        "specialQuestion": "Who is the most likely to start a club for their new hobby?"
+        "specialQuestion": "Who is the most likely to join a cult?"
     },
     {
         "id": 14,
         "question": "Who is the most likely to pack for a trip and forget underwear?",
-        "specialQuestion": "Who is the most likely to overpack for a weekend trip?"
+        "specialQuestion": "Who is the most likely to become a world-class artist?"
     },
     {
         "id": 15,
-        "question": "Who is the most likely to pretend they’re injured to sit out of a physical challenge?",
-        "specialQuestion": "Who is the most likely to exaggerate their athletic skills?"
+        "question": "Who is the most likely to pretend they're injured to sit out of a physical challenge?",
+        "specialQuestion": "Who is the most likely to climb Mount Everest?"
     },
     {
         "id": 16,
-        "question": "Who is the most likely to pretend they’ve seen a film just to avoid the conversation?",
-        "specialQuestion": "Who is the most likely to host a movie marathon night?"
+        "question": "Who is the most likely to pretend they've seen a film just to avoid the conversation?",
+        "specialQuestion": "Who is the most likely to survive a zombie apocalypse?"
     },
     {
         "id": 17,
         "question": "Who is the most likely to suggest an early time to hang out and turn up late?",
-        "specialQuestion": "Who is the most likely to plan a detailed itinerary for a group hangout?"
+        "specialQuestion": "Who is the most likely to win the lottery?"
     },
     {
         "id": 18,
         "question": "Who is the most likely to get competitive in a game no one else is taking seriously?",
-        "specialQuestion": "Who is the most likely to invent a new game for the group?"
+        "specialQuestion": "Who is the most likely to open a chain of coffee shops?"
     },
     {
         "id": 19,
         "question": "Who is the most likely to think they could land a plane in an emergency?",
-        "specialQuestion": "Who is the most likely to take flight lessons just for fun?"
+        "specialQuestion": "Who is the most likely to get lost in their own neighborhood?"
     },
     {
         "id": 20,
-        "question": "Who is the most likely to think they’d be fine in prison?",
-        "specialQuestion": "Who is the most likely to start a prison book club?"
+        "question": "Who is the most likely to think they'd be fine in prison?",
+        "specialQuestion": "Who is the most likely to break a world record?"
     },
     {
         "id": 21,
-        "question": "Who is the most likely to would be fine in prison?",
-        "specialQuestion": "Who is the most likely to befriend the prison guards?"
+        "question": "Who is the most likely to start a conspiracy theory?",
+        "specialQuestion": "Who is the most likely to speak multiple languages?"
     },
     {
         "id": 22,
-        "question": "Who is the most likely to make an imaginary escape route in every room they enter?",
-        "specialQuestion": "Who is the most likely to design a real escape room game?"
+        "question": "Who is the most likely to be found asleep in public?",
+        "specialQuestion": "Who is the most likely to live in a foreign country for a year?"
     },
     {
         "id": 23,
-        "question": "Who is the most likely to start an argument for no reason?",
-        "specialQuestion": "Who is the most likely to turn an argument into a deep philosophical debate?"
+        "question": "Who is the most likely to get a tattoo on a whim?",
+        "specialQuestion": "Who is the most likely to start their own podcast?"
     },
     {
         "id": 24,
-        "question": "Who is the most likely to make a questionable fashion choice for no reason?",
-        "specialQuestion": "Who is the most likely to start a bold fashion trend?"
+        "question": "Who is the most likely to be a secret billionaire?",
+        "specialQuestion": "Who is the most likely to live off-grid for a year?"
     },
     {
         "id": 25,
-        "question": "Who is the most likely to lose their phone at a concert?",
-        "specialQuestion": "Who is the most likely to sneak backstage at a concert?"
+        "question": "Who is the most likely to get a piercing in an unexpected place?",
+        "specialQuestion": "Who is the most likely to start a viral dance challenge?"
     },
     {
         "id": 26,
-        "question": "Who is the most likely to forget their lines in a play?",
-        "specialQuestion": "Who is the most likely to improvise a hilarious scene on stage?"
+        "question": "Who is the most likely to accidentally text the wrong person?",
+        "specialQuestion": "Who is the most likely to end up in a reality TV show?"
     },
     {
         "id": 27,
-        "question": "Who is the most likely to burn their food while cooking?",
-        "specialQuestion": "Who is the most likely to host a cooking show?"
+        "question": "Who is the most likely to believe aliens would come to Earth?",
+        "specialQuestion": "Who is the most likely to accidentally start a fire in the kitchen?"
     },
     {
         "id": 28,
-        "question": "Who is the most likely to miss a deadline for a group project?",
-        "specialQuestion": "Who is the most likely to take charge of a group project?"
+        "question": "Who is the most likely to go to space?",
+        "specialQuestion": "Who is the most likely to do stand-up comedy?"
     },
     {
         "id": 29,
-        "question": "Who is the most likely to spill their drink at a fancy event?",
-        "specialQuestion": "Who is the most likely to organize a flawless gala?"
+        "question": "Who is the most likely to quit their job and travel the world?",
+        "specialQuestion": "Who is the most likely to become a famous influencer?"
     },
     {
         "id": 30,
-        "question": "Who is the most likely to get lost in a foreign city?",
-        "specialQuestion": "Who is the most likely to become a local tour guide?"
+        "question": "Who is the most likely to become a professional gamer?",
+        "specialQuestion": "Who is the most likely to open a bakery?"
     },
     {
         "id": 31,
-        "question": "Who is the most likely to sing off-key at karaoke?",
-        "specialQuestion": "Who is the most likely to get the crowd hyped at karaoke?"
+        "question": "Who is the most likely to forget someone's birthday?",
+        "specialQuestion": "Who is the most likely to become a motivational speaker?"
     },
     {
         "id": 32,
-        "question": "Who is the most likely to forget their wallet at home?",
-        "specialQuestion": "Who is the most likely to always carry emergency cash?"
+        "question": "Who is the most likely to never get a driver's license?",
+        "specialQuestion": "Who is the most likely to work on a reality show?"
     },
     {
         "id": 33,
-        "question": "Who is the most likely to trip during a dance-off?",
-        "specialQuestion": "Who is the most likely to win a dance competition?"
+        "question": "Who is the most likely to be a secret genius?",
+        "specialQuestion": "Who is the most likely to invent a new type of food?"
     },
     {
         "id": 34,
-        "question": "Who is the most likely to oversleep for an early flight?",
-        "specialQuestion": "Who is the most likely to plan a red-eye flight itinerary?"
+        "question": "Who is the most likely to get a phone call from a celebrity?",
+        "specialQuestion": "Who is the most likely to become a millionaire by 30?"
     },
     {
         "id": 35,
-        "question": "Who is the most likely to lose their keys in a parking lot?",
-        "specialQuestion": "Who is the most likely to install a key-finding app?"
+        "question": "Who is the most likely to wear socks with sandals?",
+        "specialQuestion": "Who is the most likely to sing karaoke in front of a crowd?"
     },
     {
         "id": 36,
-        "question": "Who is the most likely to get scared in a haunted house?",
-        "specialQuestion": "Who is the most likely to work as a haunted house actor?"
+        "question": "Who is the most likely to accidentally spill a drink on someone?",
+        "specialQuestion": "Who is the most likely to win a fashion award?"
     },
     {
         "id": 37,
-        "question": "Who is the most likely to forget their lines in a speech?",
-        "specialQuestion": "Who is the most likely to give an impromptu speech?"
+        "question": "Who is the most likely to think a meal is too spicy, then eat it anyway?",
+        "specialQuestion": "Who is the most likely to become a billionaire before 40?"
     },
     {
         "id": 38,
-        "question": "Who is the most likely to overspend at a casino?",
-        "specialQuestion": "Who is the most likely to host a poker night?"
+        "question": "Who is the most likely to have a secret collection of something weird?",
+        "specialQuestion": "Who is the most likely to go viral on TikTok?"
     },
     {
         "id": 39,
-        "question": "Who is the most likely to miss a train by seconds?",
-        "specialQuestion": "Who is the most likely to memorize train schedules?"
+        "question": "Who is the most likely to accidentally break something valuable?",
+        "specialQuestion": "Who is the most likely to get a job as a stunt double?"
     },
     {
         "id": 40,
-        "question": "Who is the most likely to drop their ice cream cone?",
-        "specialQuestion": "Who is the most likely to open an ice cream shop?"
+        "question": "Who is the most likely to run a marathon just to prove they can?",
+        "specialQuestion": "Who is the most likely to join a rock band?"
     },
     {
         "id": 41,
-        "question": "Who is the most likely to forget their anniversary?",
-        "specialQuestion": "Who is the most likely to throw a surprise anniversary party?"
+        "question": "Who is the most likely to cry during a movie?",
+        "specialQuestion": "Who is the most likely to be a professional athlete?"
     },
     {
         "id": 42,
-        "question": "Who is the most likely to lose their sunglasses at the beach?",
-        "specialQuestion": "Who is the most likely to collect rare sunglasses?"
+        "question": "Who is the most likely to try and convince others to go vegan?",
+        "specialQuestion": "Who is the most likely to start a revolution?"
     },
     {
         "id": 43,
-        "question": "Who is the most likely to get stage fright before a performance?",
-        "specialQuestion": "Who is the most likely to hype up the crowd before a show?"
+        "question": "Who is the most likely to lock themselves out of their own house?",
+        "specialQuestion": "Who is the most likely to start a charity?"
     },
     {
         "id": 44,
-        "question": "Who is the most likely to spill paint during an art class?",
-        "specialQuestion": "Who is the most likely to sell their artwork at a gallery?"
+        "question": "Who is the most likely to be obsessed with a TV show?",
+        "specialQuestion": "Who is the most likely to live on a boat?"
     },
     {
         "id": 45,
-        "question": "Who is the most likely to forget their lines in a vlog?",
-        "specialQuestion": "Who is the most likely to start a popular vlog channel?"
+        "question": "Who is the most likely to be a hoarder?",
+        "specialQuestion": "Who is the most likely to run for public office?"
     },
     {
         "id": 46,
-        "question": "Who is the most likely to trip while hiking?",
-        "specialQuestion": "Who is the most likely to plan a group hiking adventure?"
+        "question": "Who is the most likely to live in a tiny house?",
+        "specialQuestion": "Who is the most likely to be a bestselling author?"
     },
     {
         "id": 47,
-        "question": "Who is the most likely to lose their scarf in a storm?",
-        "specialQuestion": "Who is the most likely to design a weatherproof scarf?"
+        "question": "Who is the most likely to get kicked out of a club for dancing too weirdly?",
+        "specialQuestion": "Who is the most likely to become a public speaker?"
     },
     {
         "id": 48,
-        "question": "Who is the most likely to forget their lines in a comedy routine?",
-        "specialQuestion": "Who is the most likely to write a viral comedy sketch?"
+        "question": "Who is the most likely to get a tattoo while drunk?",
+        "specialQuestion": "Who is the most likely to go vegan for a month?"
     },
     {
         "id": 49,
-        "question": "Who is the most likely to get stuck in an elevator?",
-        "specialQuestion": "Who is the most likely to fix an elevator?"
+        "question": "Who is the most likely to talk to a stranger for hours?",
+        "specialQuestion": "Who is the most likely to break the Guinness World Record for something random?"
     },
     {
         "id": 50,
-        "question": "Who is the most likely to lose their notebook at school?",
-        "specialQuestion": "Who is the most likely to publish a bestselling study guide?"
+        "question": "Who is the most likely to be late to their own wedding?",
+        "specialQuestion": "Who is the most likely to discover a hidden talent?"
+    },
+    {
+        "id": 51,
+        "question": "Who is the most likely to write a hit song?",
+        "specialQuestion": "Who is the most likely to get lost in a mall for hours?"
+    },
+    {
+        "id": 52,
+        "question": "Who is the most likely to become a professional photographer?",
+        "specialQuestion": "Who is the most likely to forget their lines in a play?"
+    },
+    {
+        "id": 53,
+        "question": "Who is the most likely to design a groundbreaking app?",
+        "specialQuestion": "Who is the most likely to eat someone else's leftovers without asking?"
+    },
+    {
+        "id": 54,
+        "question": "Who is the most likely to star in a blockbuster movie?",
+        "specialQuestion": "Who is the most likely to trip and fall in front of a crowd?"
+    },
+    {
+        "id": 55,
+        "question": "Who is the most likely to become a travel vlogger?",
+        "specialQuestion": "Who is the most likely to argue with a GPS navigation system?"
+    },
+    {
+        "id": 56,
+        "question": "Who is the most likely to win a cooking competition?",
+        "specialQuestion": "Who is the most likely to lose their phone in their own house?"
+    },
+    {
+        "id": 57,
+        "question": "Who is the most likely to create a viral meme?",
+        "specialQuestion": "Who is the most likely to wear mismatched shoes by accident?"
+    },
+    {
+        "id": 58,
+        "question": "Who is the most likely to start a successful YouTube channel?",
+        "specialQuestion": "Who is the most likely to oversleep for an important meeting?"
+    },
+    {
+        "id": 59,
+        "question": "Who is the most likely to become a renowned scientist?",
+        "specialQuestion": "Who is the most likely to get stuck in a revolving door?"
+    },
+    {
+        "id": 60,
+        "question": "Who is the most likely to perform a sold-out concert?",
+        "specialQuestion": "Who is the most likely to sing loudly in a quiet place?"
+    },
+    {
+        "id": 61,
+        "question": "Who is the most likely to become a famous architect?",
+        "specialQuestion": "Who is the most likely to forget where they parked their car?"
+    },
+    {
+        "id": 62,
+        "question": "Who is the most likely to win a chess championship?",
+        "specialQuestion": "Who is the most likely to buy something useless from a telemarketer?"
+    },
+    {
+        "id": 63,
+        "question": "Who is the most likely to become a motivational coach?",
+        "specialQuestion": "Who is the most likely to laugh at the wrong moment during a serious event?"
+    },
+    {
+        "id": 64,
+        "question": "Who is the most likely to create a popular board game?",
+        "specialQuestion": "Who is the most likely to drop their ice cream on the ground?"
+    },
+    {
+        "id": 65,
+        "question": "Who is the most likely to win a dance competition?",
+        "specialQuestion": "Who is the most likely to get caught singing in the shower by a roommate?"
+    },
+    {
+        "id": 66,
+        "question": "Who is the most likely to become a famous novelist?",
+        "specialQuestion": "Who is the most likely to forget their own anniversary?"
+    },
+    {
+        "id": 67,
+        "question": "Who is the most likely to start a successful charity?",
+        "specialQuestion": "Who is the most likely to trip over their own feet while dancing?"
+    },
+    {
+        "id": 68,
+        "question": "Who is the most likely to become a professional surfer?",
+        "specialQuestion": "Who is the most likely to accidentally send a meme to their boss?"
+    },
+    {
+        "id": 69,
+        "question": "Who is the most likely to invent a new sport?",
+        "specialQuestion": "Who is the most likely to get scared by their own reflection?"
+    },
+    {
+        "id": 70,
+        "question": "Who is the most likely to become a celebrated chef?",
+        "specialQuestion": "Who is the most likely to burn toast every single time?"
+    },
+    {
+        "id": 71,
+        "question": "Who is the most likely to direct an award-winning film?",
+        "specialQuestion": "Who is the most likely to forget their lines in a karaoke song?"
+    },
+    {
+        "id": 72,
+        "question": "Who is the most likely to become a world-renowned designer?",
+        "specialQuestion": "Who is the most likely to wear pajamas to a formal event?"
+    },
+    {
+        "id": 73,
+        "question": "Who is the most likely to win a Nobel Prize?",
+        "specialQuestion": "Who is the most likely to accidentally lock their keys in their car?"
+    },
+    {
+        "id": 74,
+        "question": "Who is the most likely to become a famous voice actor?",
+        "specialQuestion": "Who is the most likely to mispronounce a common word in public?"
+    },
+    {
+        "id": 75,
+        "question": "Who is the most likely to become a professional skateboarder?",
+        "specialQuestion": "Who is the most likely to get stuck in a kiddie slide?"
+    },
+    {
+        "id": 76,
+        "question": "Who is the most likely to spill coffee on their laptop?",
+        "specialQuestion": "Who is the most likely to create a popular podcast?"
+    },
+    {
+        "id": 77,
+        "question": "Who is the most likely to get caught talking to themselves in public?",
+        "specialQuestion": "Who is the most likely to become a bestselling poet?"
+    },
+    {
+        "id": 78,
+        "question": "Who is the most likely to accidentally walk into a glass door?",
+        "specialQuestion": "Who is the most likely to become a wildlife conservationist?"
+    },
+    {
+        "id": 79,
+        "question": "Who is the most likely to forget their own phone number?",
+        "specialQuestion": "Who is the most likely to win an Olympic medal?"
+    },
+    {
+        "id": 80,
+        "question": "Who is the most likely to get kicked out of a library for being too loud?",
+        "specialQuestion": "Who is the most likely to become a famous comedian?"
+    },
+    {
+        "id": 81,
+        "question": "Who is the most likely to accidentally wear their shirt inside out?",
+        "specialQuestion": "Who is the most likely to create a popular video game?"
+    },
+    {
+        "id": 82,
+        "question": "Who is the most likely to get lost in a foreign city without a map?",
+        "specialQuestion": "Who is the most likely to become a renowned historian?"
+    },
+    {
+        "id": 83,
+        "question": "Who is the most likely to forget the punchline of a joke?",
+        "specialQuestion": "Who is the most likely to become a professional magician?"
+    },
+    {
+        "id": 84,
+        "question": "Who is the most likely to accidentally dye their hair a crazy color?",
+        "specialQuestion": "Who is the most likely to start a fashion brand?"
+    },
+    {
+        "id": 85,
+        "question": "Who is the most likely to get caught sneaking snacks into a movie theater?",
+        "specialQuestion": "Who is the most likely to become a famous animator?"
+    },
+    {
+        "id": 86,
+        "question": "Who is the most likely to trip while walking up stairs?",
+        "specialQuestion": "Who is the most likely to become a professional astronomer?"
+    },
+    {
+        "id": 87,
+        "question": "Who is the most likely to accidentally call their teacher 'mom' or 'dad'?",
+        "specialQuestion": "Who is the most likely to write a bestselling memoir?"
+    },
+    {
+        "id": 88,
+        "question": "Who is the most likely to lose their wallet on a night out?",
+        "specialQuestion": "Who is the most likely to become a professional dancer?"
+    },
+    {
+        "id": 89,
+        "question": "Who is the most likely to forget what they were saying mid-sentence?",
+        "specialQuestion": "Who is the most likely to invent a new gadget?"
+    },
+    {
+        "id": 90,
+        "question": "Who is the most likely to accidentally break a chair by sitting on it?",
+        "specialQuestion": "Who is the most likely to become a famous journalist?"
+    },
+    {
+        "id": 91,
+        "question": "Who is the most likely to get caught dancing in their car at a stoplight?",
+        "specialQuestion": "Who is the most likely to become a professional chef?"
+    },
+    {
+        "id": 92,
+        "question": "Who is the most likely to forget their sunglasses on their head?",
+        "specialQuestion": "Who is the most likely to create a viral social media challenge?"
+    },
+    {
+        "id": 93,
+        "question": "Who is the most likely to accidentally leave their mic on during a virtual meeting?",
+        "specialQuestion": "Who is the most likely to become a famous musician?"
+    },
+    {
+        "id": 94,
+        "question": "Who is the most likely to get scared by a loud notification sound?",
+        "specialQuestion": "Who is the most likely to become a professional pilot?"
+    },
+    {
+        "id": 95,
+        "question": "Who is the most likely to forget their lines in a speech?",
+        "specialQuestion": "Who is the most likely to become a famous environmentalist?"
+    },
+    {
+        "id": 96,
+        "question": "Who is the most likely to accidentally walk into the wrong restroom?",
+        "specialQuestion": "Who is the most likely to become a professional gamer?"
+    },
+    {
+        "id": 97,
+        "question": "Who is the most likely to get caught eating food off the floor?",
+        "specialQuestion": "Who is the most likely to become a famous sculptor?"
+    },
+    {
+        "id": 98,
+        "question": "Who is the most likely to accidentally send an email before finishing it?",
+        "specialQuestion": "Who is the most likely to become a professional race car driver?"
+    },
+    {
+        "id": 99,
+        "question": "Who is the most likely to forget their own age?",
+        "specialQuestion": "Who is the most likely to become a famous playwright?"
+    },
+    {
+        "id": 100,
+        "question": "Who is the most likely to accidentally wave at a stranger thinking it's a friend?",
+        "specialQuestion": "Who is the most likely to become a world-renowned philanthropist?"
     }
 ]

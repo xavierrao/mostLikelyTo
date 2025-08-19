@@ -15,11 +15,11 @@ const App = () => {
     const [votes, setVotes] = useState({});
 
     useEffect(() => {
-        const newSocket = io(); // Put 'http://(IP):3000' inside io()
+        const newSocket = io('http://10.0.0.214:3000'); // Put 'http://(IP):3000' inside io()
         setSocket(newSocket);
 
         newSocket.on('gameState', ({ state, players, mainQuestion, specialQuestion, gameId: receivedGameId, isSpecialPlayer, noMoreQuestions, owner, votes }) => {
-            console.log(`Player ${playerName}: State=${state}, isSpecialPlayer=${isSpecialPlayer}`);
+            console.log(`Player ${playerName}: State=${state}, isSpecialPlayer=${isSpecialPlayer}, mainQuestion=${mainQuestion}`);
             setGameState(state);
             setPlayers(players);
             setMainQuestion(mainQuestion || '');
@@ -33,10 +33,12 @@ const App = () => {
 
         newSocket.on('error', (message) => {
             setError(message);
+            setTimeout(() => setError(''), 5000);
         });
 
         newSocket.on('connect_error', () => {
             setError('Failed to connect to server');
+            setTimeout(() => setError(''), 5000);
         });
 
         return () => newSocket.disconnect();
@@ -47,6 +49,7 @@ const App = () => {
             socket.emit('createGame', playerName);
         } else {
             setError('Please enter your name');
+            setTimeout(() => setError(''), 5000);
         }
     };
 
@@ -55,10 +58,12 @@ const App = () => {
             socket.emit('joinGame', { gameId, playerName });
         } else {
             setError('Please enter your name and game ID');
+            setTimeout(() => setError(''), 5000);
         }
     };
 
     const startGame = () => {
+        console.log('Start Game clicked');
         socket.emit('startGame', gameId);
     };
 
@@ -67,6 +72,7 @@ const App = () => {
     };
 
     const nextQuestion = () => {
+        console.log('Next Question clicked');
         socket.emit('nextQuestion', gameId);
     };
 
@@ -75,6 +81,10 @@ const App = () => {
             <h1>Most Likely To Game</h1>
             {gameId && <p>Game ID: {gameId}</p>}
             {error && <p className="error">{error}</p>}
+
+            {noMoreQuestions && (
+                <p className="error">No more unique questions available. Please end the game or start a new one.</p>
+            )}
 
             {gameState === 'joining' && (
                 <div>
@@ -113,7 +123,7 @@ const App = () => {
                 </div>
             )}
 
-            {gameState === 'question' && (
+            {gameState === 'question' && !noMoreQuestions && (
                 <div>
                     <h2>Players: {players.length}</h2>
                     <ul>
@@ -137,7 +147,7 @@ const App = () => {
                 </div>
             )}
 
-            {gameState === 'reveal' && (
+            {gameState === 'reveal' && !noMoreQuestions && (
                 <div>
                     <h2>Players: {players.length}</h2>
                     <ul>
@@ -150,13 +160,7 @@ const App = () => {
                     <p><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
                     <p><strong>Main Question: </strong>{mainQuestion}</p>
                     {isOwner && (
-                        <>
-                            {noMoreQuestions ? (
-                                <p className="error">No more questions available!</p>
-                            ) : (
-                                <button onClick={nextQuestion}>Next Question</button>
-                            )}
-                        </>
+                        <button onClick={nextQuestion}>Next Question</button>
                     )}
                 </div>
             )}
