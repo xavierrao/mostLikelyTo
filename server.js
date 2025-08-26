@@ -233,6 +233,7 @@ io.on('connection', (socket) => {
             specialPlayer: null,
             specialQuestion: '',
             votes: {},
+            guessVotes: {}, // New: For guessing the special player
             noMoreQuestions: false
         };
         socket.join(gameId);
@@ -264,6 +265,7 @@ io.on('connection', (socket) => {
         const game = games[gameId];
         game.state = 'question';
         game.votes = {};
+        game.guessVotes = {}; // Reset for new round
         const questionObj = await selectQuestion(gameId);
         if (!questionObj) {
             socket.emit('error', 'No more unique questions available.');
@@ -290,7 +292,7 @@ io.on('connection', (socket) => {
         if (!games[gameId] || !games[gameId].players.includes(socket.playerName)) return;
         const game = games[gameId];
         if (game.state !== 'question') return;
-        if (!games[gameId].players.includes(votedPlayer)) {
+        if (!game.players.includes(votedPlayer)) {
             socket.emit('error', 'Invalid player selected');
             return;
         }
@@ -322,14 +324,73 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('startGuess', (gameId) => {
+        if (!games[gameId] || games[gameId].owner !== socket.playerName) {
+            socket.emit('error', 'Only the game owner can start the guess phase');
+            return;
+        }
+        const game = games[gameId];
+        if (game.state !== 'reveal') return;
+        game.state = 'guessFake';
+        game.guessVotes = {};
+        game.players.forEach(player => {
+            const playerSocket = Array.from(io.sockets.sockets.values())
+                .find(s => s.playerName === player && s.rooms.has(gameId));
+            if (playerSocket) {
+                playerSocket.emit('gameState', {
+                    ...game,
+                    isSpecialPlayer: player === game.specialPlayer
+                });
+            }
+        });
+    });
+
+    socket.on('guessVote', ({ gameId, guessedPlayer }) => {
+        if (!games[gameId] || !games[gameId].players.includes(socket.playerName)) return;
+        const game = games[gameId];
+        if (game.state !== 'guessFake') return;
+        if (!game.players.includes(guessedPlayer)) {
+            socket.emit('error', 'Invalid player selected');
+            return;
+        }
+        game.guessVotes[socket.playerName] = guessedPlayer;
+        console.log(`Game ${gameId}: ${socket.playerName} guessed ${guessedPlayer} had the fake question`);
+        if (Object.keys(game.guessVotes).length === game.players.length) {
+            game.state = 'finalReveal';
+            game.players.forEach(player => {
+                const playerSocket = Array.from(io.sockets.sockets.values())
+                    .find(s => s.playerName === player && s.rooms.has(gameId));
+                if (playerSocket) {
+                    playerSocket.emit('gameState', {
+                        ...game,
+                        isSpecialPlayer: player === game.specialPlayer
+                    });
+                }
+            });
+        } else {
+            game.players.forEach(player => {
+                const playerSocket = Array.from(io.sockets.sockets.values())
+                    .find(s => s.playerName === player && s.rooms.has(gameId));
+                if (playerSocket) {
+                    playerSocket.emit('gameState', {
+                        ...game,
+                        isSpecialPlayer: player === game.specialPlayer
+                    });
+                }
+            });
+        }
+    });
+
     socket.on('nextQuestion', async (gameId) => {
         if (!games[gameId] || games[gameId].owner !== socket.playerName) {
             socket.emit('error', 'Only the game owner can advance to the next question');
             return;
         }
         const game = games[gameId];
+        if (game.state !== 'finalReveal') return; // Ensure it's after final reveal
         game.state = 'question';
         game.votes = {};
+        game.guessVotes = {};
         const questionObj = await selectQuestion(gameId);
         if (!questionObj) {
             socket.emit('error', 'No more unique questions available.');
@@ -359,10 +420,11 @@ io.on('connection', (socket) => {
             if (index !== -1) {
                 game.players.splice(index, 1);
                 delete game.votes[socket.playerName];
+                delete game.guessVotes[socket.playerName];
                 if (game.players.length === 0) {
                     delete games[gameId];
                 } else {
-                    game.state = game.players.length > 0 ? 'waiting' : 'joining';
+                    game.state = game.players.length > 1 ? 'waiting' : 'joining';
                     io.to(gameId).emit('gameState', games[gameId]);
                 }
             }
