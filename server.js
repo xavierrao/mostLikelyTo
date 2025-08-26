@@ -307,7 +307,8 @@ io.on('connection', (socket) => {
                 if (playerSocket) {
                     playerSocket.emit('gameState', {
                         ...game,
-                        isSpecialPlayer: player === game.specialPlayer
+                        isSpecialPlayer: player === game.specialPlayer,
+                        specialPlayer: game.specialPlayer
                     });
                 }
             });
@@ -318,7 +319,8 @@ io.on('connection', (socket) => {
                 if (playerSocket) {
                     playerSocket.emit('gameState', {
                         ...game,
-                        isSpecialPlayer: player === game.specialPlayer
+                        isSpecialPlayer: player === game.specialPlayer,
+                        specialPlayer: game.specialPlayer
                     });
                 }
             });
@@ -343,7 +345,8 @@ io.on('connection', (socket) => {
                 if (playerSocket) {
                     playerSocket.emit('gameState', {
                         ...game,
-                        isSpecialPlayer: player === game.specialPlayer
+                        isSpecialPlayer: player === game.specialPlayer,
+                        specialPlayer: game.specialPlayer
                     });
                 }
             });
@@ -354,7 +357,8 @@ io.on('connection', (socket) => {
                 if (playerSocket) {
                     playerSocket.emit('gameState', {
                         ...game,
-                        isSpecialPlayer: player === game.specialPlayer
+                        isSpecialPlayer: player === game.specialPlayer,
+                        specialPlayer: game.specialPlayer
                     });
                 }
             });
@@ -387,7 +391,8 @@ io.on('connection', (socket) => {
             if (playerSocket) {
                 playerSocket.emit('gameState', {
                     ...game,
-                    isSpecialPlayer: player === game.specialPlayer
+                    isSpecialPlayer: player === game.specialPlayer,
+                    specialPlayer: game.specialPlayer
                 });
             }
         });
@@ -405,7 +410,7 @@ io.on('connection', (socket) => {
                     delete games[gameId];
                 } else {
                     game.state = game.players.length > 1 ? 'waiting' : 'joining';
-                    io.to(gameId).emit('gameState', games[gameId]);
+                    io.to(gameId).emit('gameState', { ...game, specialPlayer: game.specialPlayer });
                 }
             }
         }

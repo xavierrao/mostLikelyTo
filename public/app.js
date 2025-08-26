@@ -14,13 +14,14 @@ const App = () => {
     const [noMoreQuestions, setNoMoreQuestions] = useState(false);
     const [votes, setVotes] = useState({});
     const [guessVotes, setGuessVotes] = useState({});
+    const [specialPlayer, setSpecialPlayer] = useState(null);
 
     useEffect(() => {
         const newSocket = io();
         setSocket(newSocket);
 
-        newSocket.on('gameState', ({ state, players, mainQuestion, specialQuestion, gameId: receivedGameId, isSpecialPlayer, noMoreQuestions, owner, votes, guessVotes }) => {
-            console.log(`Player ${playerName}: State=${state}, isSpecialPlayer=${isSpecialPlayer}, mainQuestion=${mainQuestion}`);
+        newSocket.on('gameState', ({ state, players, mainQuestion, specialQuestion, gameId: receivedGameId, isSpecialPlayer, noMoreQuestions, owner, votes, guessVotes, specialPlayer }) => {
+            console.log(`Player ${playerName}: State=${state}, isSpecialPlayer=${isSpecialPlayer}, mainQuestion=${mainQuestion}, specialPlayer=${specialPlayer}`);
             setGameState(state);
             setPlayers(players);
             setMainQuestion(mainQuestion || '');
@@ -31,6 +32,7 @@ const App = () => {
             setNoMoreQuestions(noMoreQuestions || false);
             setVotes(votes || {});
             setGuessVotes(guessVotes || {});
+            setSpecialPlayer(specialPlayer || null);
         });
 
         newSocket.on('error', (message) => {
@@ -194,7 +196,7 @@ const App = () => {
                     <p><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
                     <p><strong>Main Question: </strong>{mainQuestion}</p>
                     <p><strong>Fake Question: </strong>{specialQuestion}</p>
-                    <p><strong>Player with Fake: </strong>{specialPlayer}</p>
+                    <p><strong>Player with Fake: </strong>{specialPlayer || 'Unknown'}</p>
                     {isOwner && (
                         <button onClick={nextQuestion}>Next Question</button>
                     )}
