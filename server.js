@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const axios = require('axios');
-const fs = require('fs'); // Add fs to read questions.json
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -30,51 +30,68 @@ app.get('/', (req, res) => {
 
 const games = {};
 
-// Load questions.json to use as examples for Ollama
-let questionExamples = [];
+// Load questions.json for examples and fallback
+let questionPool = [];
 try {
     const data = fs.readFileSync('questions.json', 'utf8');
-    questionExamples = JSON.parse(data);
-    console.log(`Loaded ${questionExamples.length} question examples from questions.json`);
+    questionPool = JSON.parse(data);
+    console.log(`Loaded ${questionPool.length} questions from questions.json`);
 } catch (err) {
     console.error('Error loading questions.json:', err.message);
-    questionExamples = []; // Fallback to empty array if file read fails
+    questionPool = [];
 }
 
-// Select a few examples to include in the prompt (e.g., 3 random questions)
+// Define themes for semantic filtering
+const themeKeywords = {
+    'writing': ['novel', 'book', 'author', 'publish', 'write', 'poet', 'playwright'],
+    'food': ['pizza', 'eat', 'cook', 'chef', 'cooking', 'snack', 'ice cream', 'toast'],
+    'athletics': ['run', 'marathon', 'sport', 'dance', 'skateboard', 'surf', 'olympic'],
+    'technology': ['app', 'gadget', 'invent', 'game', 'program'],
+    'creativity': ['photograph', 'design', 'meme', 'film', 'art', 'sculpt'],
+    'performance': ['sing', 'concert', 'act', 'movie', 'voice', 'comedian', 'magician'],
+    'travel': ['travel', 'vlog', 'navigation', 'city'],
+    'embarrassment': ['forget', 'trip', 'lose', 'mispronounce', 'mismatch', 'oversleep'],
+    'science': ['scientist', 'astronomer', 'nobel'],
+    'charity': ['charity', 'philanthropist', 'conservation'],
+    'business': ['company', 'entrepreneur']
+};
+
+// Function to determine the theme of a question
+const getQuestionTheme = (question) => {
+    question = question.toLowerCase();
+    for (const [theme, keywords] of Object.entries(themeKeywords)) {
+        if (keywords.some(keyword => question.includes(keyword))) {
+            return theme;
+        }
+    }
+    return 'other';
+};
+
+// Select a few examples to include in the prompt (e.g., 3 diverse questions)
 const getExampleQuestions = () => {
-    if (questionExamples.length === 0) return [];
-    const shuffled = [...questionExamples].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, Math.min(3, questionExamples.length)).map(q => ({
+    if (questionPool.length === 0) return [];
+    const shuffled = [...questionPool].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(3, questionPool.length)).map(q => ({
         question: q.question,
         specialQuestion: q.specialQuestion
     }));
 };
 
-// Pool of fallback questions
+// Fallback questions with diverse themes
 const fallbackQuestions = [
-    {
-        id: Date.now(),
-        question: "Who is the most likely to become a famous inventor?",
-        specialQuestion: "Who is the most likely to forget their own birthday?"
-    },
-    {
-        id: Date.now() + 1,
-        question: "Who is the most likely to win a marathon?",
-        specialQuestion: "Who is the most likely to trip over their own shoelaces?"
-    },
-    {
-        id: Date.now() + 2,
-        question: "Who is the most likely to start a successful company?",
-        specialQuestion: "Who is the most likely to lose their keys in their own house?"
-    }
+    { id: Date.now(), question: "Who is the most likely to become a famous inventor?", specialQuestion: "Who is the most likely to forget their own birthday?", theme: 'technology' },
+    { id: Date.now() + 1, question: "Who is the most likely to win a marathon?", specialQuestion: "Who is the most likely to trip over their own shoelaces?", theme: 'athletics' },
+    { id: Date.now() + 2, question: "Who is the most likely to start a successful company?", specialQuestion: "Who is the most likely to lose their keys in their own house?", theme: 'business' },
+    { id: Date.now() + 3, question: "Who is the most likely to paint a masterpiece?", specialQuestion: "Who is the most likely to spill paint on their clothes?", theme: 'creativity' },
+    { id: Date.now() + 4, question: "Who is the most likely to perform stand-up comedy?", specialQuestion: "Who is the most likely to laugh at their own joke?", theme: 'performance' },
+    { id: Date.now() + 5, question: "Who is the most likely to discover a new species?", specialQuestion: "Who is the most likely to scream at a bug?", theme: 'science' }
 ];
 
 function generateGameId() {
     return Math.random().toString(36).substring(2, 9);
 }
 
-// Generate a unique question using Ollama, guided by questions.json examples
+// Select a unique question using Hugging Face API or fallback to questions.json
 async function selectQuestion(gameId) {
     const game = games[gameId];
     if (!game) {
@@ -82,100 +99,124 @@ async function selectQuestion(gameId) {
         return null;
     }
 
-    // Track used questions by content to ensure uniqueness
     const usedQuestions = game.usedQuestions || new Set();
-    game.usedQuestions = usedQuestions; // Initialize if not present
+    const usedThemes = game.usedThemes || new Set();
+    game.usedQuestions = usedQuestions;
+    game.usedThemes = usedThemes;
     const maxRetries = 3;
 
+    // Try Hugging Face API
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
             const timestamp = Date.now();
-            const seed = `${gameId}-${timestamp}-${attempt}`; // Unique seed per attempt
+            const seed = `${gameId}-${timestamp}-${attempt}`;
             const examples = getExampleQuestions();
             const exampleText = examples.length > 0
                 ? examples.map((ex, i) => 
                     `Example ${i + 1}: {"question": "${ex.question}", "specialQuestion": "${ex.specialQuestion}"}`
                   ).join('\n')
                 : 'No examples available.';
-
-            // List previously used questions to avoid duplicates
-            const usedQuestionsText = Array.from(usedQuestions).length > 0
-                ? `Previously used questions to avoid:\n${Array.from(usedQuestions).map(q => 
-                    `{"question": "${q.question}", "specialQuestion": "${q.specialQuestion}"}`
-                  ).join('\n')}`
-                : 'No previously used questions.';
+            const usedThemesText = Array.from(usedThemes).length > 0
+                ? `Avoid themes: ${Array.from(usedThemes).join(', ')}`
+                : 'No themes to avoid yet.';
 
             const prompt = `
-                Return a JSON object with exactly three fields: "id", "question", and "specialQuestion". Do NOT include markdown code fences, comments, or any text outside the JSON object. The output must be valid JSON only.
+                Return a JSON object with exactly three fields: "id", "question", and "specialQuestion". The output must be valid JSON only, with no markdown, comments, or extra text.
                 {
-                    "id": "<unique number, e.g., ${timestamp}>",
-                    "question": "<Positive, aspirational, or impressive question in the style of the examples below>",
-                    "specialQuestion": "<Humorous, mildly embarrassing, or quirky question in the style of the examples below>"
+                    "id": "${timestamp}",
+                    "question": "<Positive, aspirational question in the style of the examples below>",
+                    "specialQuestion": "<Humorous, quirky question in the style of the examples below>"
                 }
-                The "question" should be positive and aspirational, suitable for a group game, e.g., "Who is the most likely to write a hit song?"
-                The "specialQuestion" should be humorous or quirky, suitable for a group game, e.g., "Who is the most likely to get lost in a mall for hours?"
-                Ensure the questions are unique, fun, and suitable for groups. Do not repeat any of the previously used questions listed below.
-                Examples from questions.json to guide the style:
+                The "question" should be positive and aspirational, suitable for a group game, e.g., "Who is the most likely to win a cooking competition?"
+                The "specialQuestion" should be humorous or quirky, suitable for a group game, e.g., "Who is the most likely to lose their phone in their own house?"
+                Ensure questions are unique in both wording and theme. Avoid themes: ${usedThemesText}.
+                Examples to guide the style:
                 ${exampleText}
-                ${usedQuestionsText}
                 Generate unique questions for this request (seed: ${seed}).
             `;
 
-            const response = await axios.post('http://127.0.0.1:11434/api/generate', {
-                model: 'llama3.1',
-                prompt: prompt,
-                stream: false,
-                options: {
-                    temperature: 1.2, // High temperature for more randomness
-                    no_cache: true // Disable caching
+            const response = await axios.post('https://api-inference.huggingface.co/models/distilgpt2', {
+                inputs: prompt,
+                parameters: {
+                    max_new_tokens: 200,
+                    temperature: 1.2,
+                    top_p: 0.9,
+                    do_sample: true
                 }
+            }, {
+                headers: { 'Content-Type': 'application/json' }
             });
 
-            let responseText = response.data.response.trim();
-            responseText = responseText.replace(/^```json\s*|\s*```$/g, '');
-            console.log(`Game ${gameId}: Ollama response (attempt ${attempt}): ${responseText}`);
+            let responseText = response.data[0].generated_text.trim();
+            // Extract JSON from response (model may include extra text)
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            if (!jsonMatch) throw new Error('Invalid JSON response');
+            responseText = jsonMatch[0];
+            console.log(`Game ${gameId}: Hugging Face response (attempt ${attempt}): ${responseText}`);
             const questionData = JSON.parse(responseText);
 
             const questionKey = `${questionData.question}|${questionData.specialQuestion}`;
-            if (usedQuestions.has(questionKey)) {
-                console.log(`Game ${gameId}: Generated question is a duplicate, retrying (${attempt}/${maxRetries})`);
-                continue; // Retry if the question is a duplicate
+            const mainQuestionTheme = getQuestionTheme(questionData.question);
+            const specialQuestionTheme = getQuestionTheme(questionData.specialQuestion);
+
+            if (usedQuestions.has(questionKey) || 
+                usedThemes.has(mainQuestionTheme) || 
+                usedThemes.has(specialQuestionTheme)) {
+                console.log(`Game ${gameId}: Generated question is a duplicate or has used theme (${mainQuestionTheme}, ${specialQuestionTheme}), retrying (${attempt}/${maxRetries})`);
+                continue;
             }
 
-            // Add to used questions
             usedQuestions.add(questionKey);
-            game.usedQuestionIds.push(questionData.id || timestamp); // Track ID for compatibility
-            console.log(`Game ${gameId}: Generated question: ${questionData.question}`);
+            usedThemes.add(mainQuestionTheme);
+            usedThemes.add(specialQuestionTheme);
+            game.usedQuestionIds.push(questionData.id || timestamp);
+            console.log(`Game ${gameId}: Generated question: ${questionData.question} (theme: ${mainQuestionTheme})`);
             return {
                 id: questionData.id || timestamp,
                 question: questionData.question,
                 specialQuestion: questionData.specialQuestion
             };
         } catch (error) {
-            console.error(`Game ${gameId}: Error generating question with Ollama (attempt ${attempt}): ${error.message}`);
-            if (attempt === maxRetries) {
-                // Select a random fallback question that hasn't been used
-                const availableFallbacks = fallbackQuestions.filter(
-                    q => !usedQuestions.has(`${q.question}|${q.specialQuestion}`)
-                );
-                if (availableFallbacks.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * availableFallbacks.length);
-                    const selectedQuestion = availableFallbacks[randomIndex];
-                    usedQuestions.add(`${selectedQuestion.question}|${selectedQuestion.specialQuestion}`);
-                    game.usedQuestionIds.push(selectedQuestion.id);
-                    console.log(`Game ${gameId}: Using fallback question: ${selectedQuestion.question}`);
-                    return selectedQuestion;
-                }
-
-                // No unique questions available
-                console.log(`Game ${gameId}: No more unique questions available`);
-                io.to(gameId).emit('gameState', { ...game, noMoreQuestions: true });
-                return null;
-            }
+            console.error(`Game ${gameId}: Error generating question with Hugging Face (attempt ${attempt}): ${error.message}`);
         }
     }
 
-    return null; // Return null if all retries fail and no fallback is available
+    // Fallback to questions.json
+    const availableQuestions = questionPool.filter(
+        q => !game.usedQuestionIds.includes(q.id) &&
+             !usedThemes.has(getQuestionTheme(q.question)) &&
+             !usedThemes.has(getQuestionTheme(q.specialQuestion))
+    );
+
+    if (availableQuestions.length === 0) {
+        // Try fallback questions
+        const availableFallbacks = fallbackQuestions.filter(
+            q => !usedThemes.has(q.theme) && !usedQuestions.has(`${q.question}|${q.specialQuestion}`)
+        );
+        if (availableFallbacks.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableFallbacks.length);
+            const selectedQuestion = availableFallbacks[randomIndex];
+            usedQuestions.add(`${selectedQuestion.question}|${selectedQuestion.specialQuestion}`);
+            usedThemes.add(selectedQuestion.theme);
+            game.usedQuestionIds.push(selectedQuestion.id);
+            console.log(`Game ${gameId}: Using fallback question: ${selectedQuestion.question} (theme: ${selectedQuestion.theme})`);
+            return selectedQuestion;
+        }
+
+        console.log(`Game ${gameId}: No more unique questions available`);
+        io.to(gameId).emit('gameState', { ...game, noMoreQuestions: true });
+        return null;
+    }
+
+    const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+    const selectedQuestion = availableQuestions[randomIndex];
+    const questionKey = `${selectedQuestion.question}|${selectedQuestion.specialQuestion}`;
+    usedQuestions.add(questionKey);
+    usedThemes.add(getQuestionTheme(selectedQuestion.question));
+    usedThemes.add(getQuestionTheme(selectedQuestion.specialQuestion));
+    game.usedQuestionIds.push(selectedQuestion.id);
+    console.log(`Game ${gameId}: Selected question from pool: ${selectedQuestion.question} (theme: ${getQuestionTheme(selectedQuestion.question)})`);
+    return selectedQuestion;
 }
 
 io.on('connection', (socket) => {
@@ -186,7 +227,8 @@ io.on('connection', (socket) => {
             state: 'waiting',
             owner: playerName,
             usedQuestionIds: [],
-            usedQuestions: new Set(), // Track used question content
+            usedQuestions: new Set(),
+            usedThemes: new Set(),
             mainQuestion: '',
             specialPlayer: null,
             specialQuestion: '',
@@ -332,6 +374,7 @@ io.on('connection', (socket) => {
     });
 });
 
-server.listen(3000, () => {
-    console.log('Server running on port 3000');
+const port = process.env.PORT || 3000;
+server.listen(port, () => {
+    console.log(`Server running on port ${port}`);
 });
