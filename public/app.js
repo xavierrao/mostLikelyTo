@@ -15,12 +15,13 @@ const App = () => {
     const [votes, setVotes] = useState({});
     const [guessVotes, setGuessVotes] = useState({});
     const [specialPlayer, setSpecialPlayer] = useState(null);
+    const [points, setPoints] = useState({});
 
     useEffect(() => {
         const newSocket = io();
         setSocket(newSocket);
 
-        newSocket.on('gameState', ({ state, players, mainQuestion, specialQuestion, gameId: receivedGameId, isSpecialPlayer, noMoreQuestions, owner, votes, guessVotes, specialPlayer }) => {
+        newSocket.on('gameState', ({ state, players, mainQuestion, specialQuestion, gameId: receivedGameId, isSpecialPlayer, noMoreQuestions, owner, votes, guessVotes, specialPlayer, points }) => {
             console.log(`Player ${playerName}: State=${state}, isSpecialPlayer=${isSpecialPlayer}, mainQuestion=${mainQuestion}, specialPlayer=${specialPlayer}`);
             setGameState(state);
             setPlayers(players);
@@ -33,6 +34,7 @@ const App = () => {
             setVotes(votes || {});
             setGuessVotes(guessVotes || {});
             setSpecialPlayer(specialPlayer || null);
+            setPoints(points || {});
         });
 
         newSocket.on('error', (message) => {
@@ -118,11 +120,11 @@ const App = () => {
             {gameState === 'waiting' && (
                 <div>
                     <h2>Players: {players.length}</h2>
-                    <ul>
+                    <div>
                         {players.map((player) => (
-                            <li key={player}>{player}</li>
+                            <div key={player}>({points[player] || 0}) {player}</div>
                         ))}
-                    </ul>
+                    </div>
                     {isOwner ? (
                         <button onClick={startGame}>Start Game</button>
                     ) : (
@@ -134,11 +136,11 @@ const App = () => {
             {gameState === 'question' && !noMoreQuestions && (
                 <div>
                     <h2>Players: {players.length}</h2>
-                    <ul>
+                    <div>
                         {players.map((player) => (
-                            <li key={player}>{player}</li>
+                            <div key={player}>({points[player] || 0}) {player}</div>
                         ))}
-                    </ul>
+                    </div>
                     <p><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
                     <p>Vote for who you think this is:</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
@@ -158,13 +160,13 @@ const App = () => {
             {gameState === 'guessFake' && !noMoreQuestions && (
                 <div>
                     <h2>Players: {players.length}</h2>
-                    <ul>
+                    <div>
                         {players.map((player) => (
-                            <li key={player}>
-                                {player} {votes[player] ? `(voted for ${votes[player]})` : '(no vote)'}
-                            </li>
+                            <div key={player}>
+                                ({points[player] || 0}) {player} {votes[player] ? `(voted for ${votes[player]})` : '(no vote)'}
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                     <p><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
                     <p><strong>Main Question: </strong>{mainQuestion}</p>
                     <p>Guess who had the fake question:</p>
@@ -185,18 +187,18 @@ const App = () => {
             {gameState === 'finalReveal' && !noMoreQuestions && (
                 <div>
                     <h2>Players: {players.length}</h2>
-                    <ul>
+                    <div>
                         {players.map((player) => (
-                            <li key={player}>
-                                {player} {votes[player] ? `(voted for ${votes[player]})` : '(no vote)'}
+                            <div key={player}>
+                                ({points[player] || 0}) {player} {votes[player] ? `(voted for ${votes[player]})` : '(no vote)'}
                                 {guessVotes[player] ? ` (guessed ${guessVotes[player]})` : ' (no guess)'}
-                            </li>
+                            </div>
                         ))}
-                    </ul>
+                    </div>
                     <p><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
                     <p><strong>Main Question: </strong>{mainQuestion}</p>
                     <p><strong>Fake Question: </strong>{specialQuestion}</p>
-                    <p><strong>Player with Fake: </strong>{specialPlayer || 'Unknown'}</p>
+                    <p><strong>Imposter: </strong>{specialPlayer || 'Unknown'}</p>
                     {isOwner && (
                         <button onClick={nextQuestion}>Next Question</button>
                     )}

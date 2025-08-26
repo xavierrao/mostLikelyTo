@@ -224,6 +224,7 @@ io.on('connection', (socket) => {
         const gameId = generateGameId();
         games[gameId] = {
             players: [playerName],
+            points: { [playerName]: 0 }, // Initialize points for the player
             state: 'waiting',
             owner: playerName,
             usedQuestionIds: [],
@@ -251,6 +252,7 @@ io.on('connection', (socket) => {
             return;
         }
         games[gameId].players.push(playerName);
+        games[gameId].points[playerName] = 0; // Initialize points for new player
         games[gameId].state = 'waiting';
         socket.join(gameId);
         socket.playerName = playerName;
@@ -282,7 +284,8 @@ io.on('connection', (socket) => {
             if (playerSocket) {
                 playerSocket.emit('gameState', {
                     ...game,
-                    isSpecialPlayer: player === game.specialPlayer
+                    isSpecialPlayer: player === game.specialPlayer,
+                    specialPlayer: game.specialPlayer
                 });
             }
         });
@@ -338,6 +341,16 @@ io.on('connection', (socket) => {
         game.guessVotes[socket.playerName] = guessedPlayer;
         console.log(`Game ${gameId}: ${socket.playerName} guessed ${guessedPlayer} had the fake question`);
         if (Object.keys(game.guessVotes).length === game.players.length) {
+            // Award points
+            Object.keys(game.guessVotes).forEach(voter => {
+                if (game.guessVotes[voter] === game.specialPlayer) {
+                    game.points[voter] = (game.points[voter] || 0) + 1; // 1 point for correct guess
+                }
+            });
+            const nonVoters = game.players.filter(p => p !== game.specialPlayer && game.guessVotes[p] !== game.specialPlayer);
+            game.points[game.specialPlayer] = (game.points[game.specialPlayer] || 0) + nonVoters.length; // 1 point per player who didn't guess specialPlayer
+            // Sort players by points (descending)
+            game.players.sort((a, b) => (game.points[b] || 0) - (game.points[a] || 0));
             game.state = 'finalReveal';
             game.players.forEach(player => {
                 const playerSocket = Array.from(io.sockets.sockets.values())
@@ -406,10 +419,13 @@ io.on('connection', (socket) => {
                 game.players.splice(index, 1);
                 delete game.votes[socket.playerName];
                 delete game.guessVotes[socket.playerName];
+                delete game.points[socket.playerName];
                 if (game.players.length === 0) {
                     delete games[gameId];
                 } else {
                     game.state = game.players.length > 1 ? 'waiting' : 'joining';
+                    // Re-sort players by points after removal
+                    game.players.sort((a, b) => (game.points[b] || 0) - (game.points[a] || 0));
                     io.to(gameId).emit('gameState', { ...game, specialPlayer: game.specialPlayer });
                 }
             }
