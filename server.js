@@ -233,7 +233,7 @@ io.on('connection', (socket) => {
             specialPlayer: null,
             specialQuestion: '',
             votes: {},
-            guessVotes: {}, // New: For guessing the special player
+            guessVotes: {},
             noMoreQuestions: false
         };
         socket.join(gameId);
@@ -265,7 +265,7 @@ io.on('connection', (socket) => {
         const game = games[gameId];
         game.state = 'question';
         game.votes = {};
-        game.guessVotes = {}; // Reset for new round
+        game.guessVotes = {};
         const questionObj = await selectQuestion(gameId);
         if (!questionObj) {
             socket.emit('error', 'No more unique questions available.');
@@ -299,7 +299,8 @@ io.on('connection', (socket) => {
         game.votes[socket.playerName] = votedPlayer;
         console.log(`Game ${gameId}: ${socket.playerName} voted for ${votedPlayer}`);
         if (Object.keys(game.votes).length === game.players.length) {
-            game.state = 'reveal';
+            game.state = 'guessFake';
+            game.guessVotes = {};
             game.players.forEach(player => {
                 const playerSocket = Array.from(io.sockets.sockets.values())
                     .find(s => s.playerName === player && s.rooms.has(gameId));
@@ -322,27 +323,6 @@ io.on('connection', (socket) => {
                 }
             });
         }
-    });
-
-    socket.on('startGuess', (gameId) => {
-        if (!games[gameId] || games[gameId].owner !== socket.playerName) {
-            socket.emit('error', 'Only the game owner can start the guess phase');
-            return;
-        }
-        const game = games[gameId];
-        if (game.state !== 'reveal') return;
-        game.state = 'guessFake';
-        game.guessVotes = {};
-        game.players.forEach(player => {
-            const playerSocket = Array.from(io.sockets.sockets.values())
-                .find(s => s.playerName === player && s.rooms.has(gameId));
-            if (playerSocket) {
-                playerSocket.emit('gameState', {
-                    ...game,
-                    isSpecialPlayer: player === game.specialPlayer
-                });
-            }
-        });
     });
 
     socket.on('guessVote', ({ gameId, guessedPlayer }) => {
@@ -387,7 +367,7 @@ io.on('connection', (socket) => {
             return;
         }
         const game = games[gameId];
-        if (game.state !== 'finalReveal') return; // Ensure it's after final reveal
+        if (game.state !== 'finalReveal') return;
         game.state = 'question';
         game.votes = {};
         game.guessVotes = {};

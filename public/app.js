@@ -13,10 +13,10 @@ const App = () => {
     const [error, setError] = useState('');
     const [noMoreQuestions, setNoMoreQuestions] = useState(false);
     const [votes, setVotes] = useState({});
-    const [guessVotes, setGuessVotes] = useState({}); // New: For guess votes
+    const [guessVotes, setGuessVotes] = useState({});
 
     useEffect(() => {
-        const newSocket = io(); // Connects to the same host
+        const newSocket = io();
         setSocket(newSocket);
 
         newSocket.on('gameState', ({ state, players, mainQuestion, specialQuestion, gameId: receivedGameId, isSpecialPlayer, noMoreQuestions, owner, votes, guessVotes }) => {
@@ -71,11 +71,6 @@ const App = () => {
 
     const vote = (votedPlayer) => {
         socket.emit('vote', { gameId, votedPlayer });
-    };
-
-    const startGuess = () => {
-        console.log('Start Guess Fake clicked');
-        socket.emit('startGuess', gameId);
     };
 
     const guessVote = (guessedPlayer) => {
@@ -158,7 +153,7 @@ const App = () => {
                 </div>
             )}
 
-            {gameState === 'reveal' && !noMoreQuestions && (
+            {gameState === 'guessFake' && !noMoreQuestions && (
                 <div>
                     <h2>Players: {players.length}</h2>
                     <ul>
@@ -168,21 +163,8 @@ const App = () => {
                             </li>
                         ))}
                     </ul>
+                    <p><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
                     <p><strong>Main Question: </strong>{mainQuestion}</p>
-                    {isOwner && (
-                        <button onClick={startGuess}>Guess Who Had Fake</button>
-                    )}
-                </div>
-            )}
-
-            {gameState === 'guessFake' && !noMoreQuestions && (
-                <div>
-                    <h2>Players: {players.length}</h2>
-                    <ul>
-                        {players.map((player) => (
-                            <li key={player}>{player}</li>
-                        ))}
-                    </ul>
                     <p>Guess who had the fake question:</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                         {players.map((player) => (
@@ -204,10 +186,12 @@ const App = () => {
                     <ul>
                         {players.map((player) => (
                             <li key={player}>
-                                {player} {guessVotes[player] ? `(guessed ${guessVotes[player]})` : '(no guess)'}
+                                {player} {votes[player] ? `(voted for ${votes[player]})` : '(no vote)'}
+                                {guessVotes[player] ? ` (guessed ${guessVotes[player]})` : ' (no guess)'}
                             </li>
                         ))}
                     </ul>
+                    <p><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
                     <p><strong>Main Question: </strong>{mainQuestion}</p>
                     <p><strong>Fake Question: </strong>{specialQuestion}</p>
                     <p><strong>Player with Fake: </strong>{specialPlayer}</p>
