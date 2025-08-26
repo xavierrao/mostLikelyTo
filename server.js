@@ -224,7 +224,7 @@ io.on('connection', (socket) => {
         const gameId = generateGameId();
         games[gameId] = {
             players: [playerName],
-            points: { [playerName]: 0 }, // Initialize points for the player
+            points: { [playerName]: 0 },
             state: 'waiting',
             owner: playerName,
             usedQuestionIds: [],
@@ -252,7 +252,7 @@ io.on('connection', (socket) => {
             return;
         }
         games[gameId].players.push(playerName);
-        games[gameId].points[playerName] = 0; // Initialize points for new player
+        games[gameId].points[playerName] = 0;
         games[gameId].state = 'waiting';
         socket.join(gameId);
         socket.playerName = playerName;
@@ -334,20 +334,25 @@ io.on('connection', (socket) => {
         if (!games[gameId] || !games[gameId].players.includes(socket.playerName)) return;
         const game = games[gameId];
         if (game.state !== 'guessFake') return;
+        if (socket.playerName === game.specialPlayer) {
+            socket.emit('error', 'You cannot vote as the special player');
+            return;
+        }
         if (!game.players.includes(guessedPlayer)) {
             socket.emit('error', 'Invalid player selected');
             return;
         }
         game.guessVotes[socket.playerName] = guessedPlayer;
         console.log(`Game ${gameId}: ${socket.playerName} guessed ${guessedPlayer} had the fake question`);
-        if (Object.keys(game.guessVotes).length === game.players.length) {
+        const nonSpecialPlayers = game.players.filter(p => p !== game.specialPlayer);
+        if (Object.keys(game.guessVotes).length === nonSpecialPlayers.length) {
             // Award points
             Object.keys(game.guessVotes).forEach(voter => {
                 if (game.guessVotes[voter] === game.specialPlayer) {
                     game.points[voter] = (game.points[voter] || 0) + 1; // 1 point for correct guess
                 }
             });
-            const nonVoters = game.players.filter(p => p !== game.specialPlayer && game.guessVotes[p] !== game.specialPlayer);
+            const nonVoters = nonSpecialPlayers.filter(p => game.guessVotes[p] !== game.specialPlayer);
             game.points[game.specialPlayer] = (game.points[game.specialPlayer] || 0) + nonVoters.length; // 1 point per player who didn't guess specialPlayer
             // Sort players by points (descending)
             game.players.sort((a, b) => (game.points[b] || 0) - (game.points[a] || 0));

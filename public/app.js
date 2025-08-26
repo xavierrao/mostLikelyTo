@@ -169,18 +169,24 @@ const App = () => {
                     </div>
                     <p><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
                     <p><strong>Main Question: </strong>{mainQuestion}</p>
-                    <p>Guess who had the fake question:</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                        {players.map((player) => (
-                            <button
-                                key={player}
-                                onClick={() => guessVote(player)}
-                                style={{ backgroundColor: guessVotes[playerName] === player ? '#28a745' : '#007bff' }}
-                            >
-                                {player}
-                            </button>
-                        ))}
-                    </div>
+                    {isSpecialPlayer ? (
+                        <p>Wait for everyone to finish voting</p>
+                    ) : (
+                        <>
+                            <p>Guess who had the fake question:</p>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                                {players.map((player) => (
+                                    <button
+                                        key={player}
+                                        onClick={() => guessVote(player)}
+                                        style={{ backgroundColor: guessVotes[playerName] === player ? '#28a745' : '#007bff' }}
+                                    >
+                                        {player}
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </div>
             )}
 
