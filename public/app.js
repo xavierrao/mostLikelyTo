@@ -87,68 +87,80 @@ const App = () => {
     };
 
     return (
-        <div className="container">
-            <h1>Most Likely To Game</h1>
-            {gameId && <p>Game ID: {gameId}</p>}
-            {error && <p className="error">{error}</p>}
+        <div className="container mx-auto p-4 max-w-2xl">
+            <style>{`
+                .player-grid {
+                    display: grid !important;
+                    grid-template-columns: 50px 1fr 70px 100px 70px 100px !important;
+                }
+            `}</style>
+            <h1 className="text-3xl font-bold mb-4 text-center">Most Likely To Game</h1>
+            {gameId && <p className="text-lg mb-2">Game ID: {gameId}</p>}
+            {error && <p className="text-red-500 mb-2">{error}</p>}
 
             {noMoreQuestions && (
-                <p className="error">No more unique questions available. Please end the game or start a new one.</p>
+                <p className="text-red-500 mb-2">No more unique questions available. Please end the game or start a new one.</p>
             )}
 
             {gameState === 'joining' && (
-                <div>
+                <div className="space-y-4">
                     <input
                         type="text"
                         placeholder="Your Name"
                         value={playerName}
                         onChange={(e) => setPlayerName(e.target.value)}
+                        className="border p-2 w-full rounded"
                     />
                     <input
                         type="text"
                         placeholder="Game ID (leave blank to create)"
                         value={gameId}
                         onChange={(e) => setGameId(e.target.value)}
+                        className="border p-2 w-full rounded"
                     />
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        <button onClick={createGame}>Create Game</button>
-                        <button onClick={joinGame}>Join Game</button>
+                    <div className="flex gap-4 justify-center">
+                        <button onClick={createGame} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Create Game</button>
+                        <button onClick={joinGame} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Join Game</button>
                     </div>
                 </div>
             )}
 
             {gameState === 'waiting' && (
-                <div>
-                    <h2>Players: {players.length}</h2>
-                    <div>
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-semibold">Players: {players.length}</h2>
+                    <div className="space-y-2">
                         {players.map((player) => (
-                            <div key={player}>({points[player] || 0}) {player}</div>
+                            <div key={player} className="text-lg">
+                                <span className="font-bold">({points[player] || 0})</span> <span className={player === playerName ? 'underline truncate' : 'truncate'}>{player}</span>
+                            </div>
                         ))}
                     </div>
                     {isOwner ? (
-                        <button onClick={startGame}>Start Game</button>
+                        <button onClick={startGame} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Start Game</button>
                     ) : (
-                        <p>Waiting for the game owner to start...</p>
+                        <p className="text-lg">Waiting for the game owner to start...</p>
                     )}
                 </div>
             )}
 
             {gameState === 'question' && !noMoreQuestions && (
-                <div>
-                    <h2>Players: {players.length}</h2>
-                    <div>
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-semibold">Players: {players.length}</h2>
+                    <div className="space-y-2">
                         {players.map((player) => (
-                            <div key={player}>({points[player] || 0}) {player}</div>
+                            <div key={player} className="text-lg">
+                                <span className="font-bold">({points[player] || 0})</span> <span className={player === playerName ? 'underline truncate' : 'truncate'}>{player}</span>
+                            </div>
                         ))}
                     </div>
-                    <p><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
-                    <p>Vote for who you think this is:</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                    <p className="text-lg"><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
+                    <p className="text-lg">Vote for who you think this is:</p>
+                    <div className="flex flex-wrap gap-2">
                         {players.map((player) => (
                             <button
                                 key={player}
                                 onClick={() => vote(player)}
-                                style={{ backgroundColor: votes[playerName] === player ? '#28a745' : '#007bff' }}
+                                className={`px-4 py-2 rounded text-white ${votes[playerName] === player ? 'bg-green-500' : 'bg-blue-500 hover:bg-blue-600'}`}
                             >
                                 {player}
                             </button>
@@ -158,28 +170,31 @@ const App = () => {
             )}
 
             {gameState === 'guessFake' && !noMoreQuestions && (
-                <div>
-                    <h2>Players: {players.length}</h2>
-                    <div>
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-semibold">Players: {players.length}</h2>
+                    <div className="space-y-2">
                         {players.map((player) => (
-                            <div key={player}>
-                                ({points[player] || 0}) {player} {votes[player] ? `(voted for ${votes[player]})` : '(no vote)'}
+                            <div key={player} className="grid grid-cols-[50px_1fr_70px_100px] gap-2 text-lg items-center player-grid">
+                                <span className="font-bold">({points[player] || 0})</span>
+                                <span className={player === playerName ? 'underline truncate' : 'truncate'}>{player}</span>
+                                <span className="italic text text-right">Voted:</span>
+                                <span className="italic text truncate">{votes[player] || 'No vote'}</span>
                             </div>
                         ))}
                     </div>
-                    <p><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
-                    <p><strong>Main Question: </strong>{mainQuestion}</p>
+                    <p className="text-lg"><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
+                    <p className="text-lg"><strong>Main Question: </strong>{mainQuestion}</p>
                     {isSpecialPlayer ? (
-                        <p>Wait for everyone to finish voting</p>
+                        <p className="text-lg">Wait for everyone to finish voting</p>
                     ) : (
                         <>
-                            <p>Guess who had the fake question:</p>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                            <p className="text-lg">Guess who had the fake question:</p>
+                            <div className="flex flex-wrap gap-2">
                                 {players.map((player) => (
                                     <button
                                         key={player}
                                         onClick={() => guessVote(player)}
-                                        style={{ backgroundColor: guessVotes[playerName] === player ? '#28a745' : '#007bff' }}
+                                        className={`px-4 py-2 rounded text-white ${guessVotes[playerName] === player ? 'bg-green-500' : 'bg-blue-500 hover:bg-blue-600'}`}
                                     >
                                         {player}
                                     </button>
@@ -191,22 +206,26 @@ const App = () => {
             )}
 
             {gameState === 'finalReveal' && !noMoreQuestions && (
-                <div>
-                    <h2>Players: {players.length}</h2>
-                    <div>
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-semibold">Players: {players.length}</h2>
+                    <div className="space-y-2">
                         {players.map((player) => (
-                            <div key={player}>
-                                ({points[player] || 0}) {player} {votes[player] ? `(voted for ${votes[player]})` : '(no vote)'}
-                                {guessVotes[player] ? ` (guessed ${guessVotes[player]})` : ' (no guess)'}
+                            <div key={player} className="grid grid-cols-[50px_1fr_70px_100px_70px_100px] gap-2 text-lg items-center player-grid">
+                                <span className="font-bold">({points[player] || 0})</span>
+                                <span className={player === playerName ? 'underline truncate' : 'truncate'}>{player}</span>
+                                <span className="italic text text-right">Voted:</span>
+                                <span className="italic text truncate">{votes[player] || 'None'}</span>
+                                <span className="italic text text-right">Guessed:</span>
+                                <span className="italic text truncate">{guessVotes[player] || 'None'}</span>
                             </div>
                         ))}
                     </div>
-                    <p><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
-                    <p><strong>Main Question: </strong>{mainQuestion}</p>
-                    <p><strong>Fake Question: </strong>{specialQuestion}</p>
-                    <p><strong>Imposter: </strong>{specialPlayer || 'Unknown'}</p>
+                    <p className="text-lg"><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
+                    <p className="text-lg"><strong>Main Question: </strong>{mainQuestion}</p>
+                    <p className="text-lg"><strong>Fake Question: </strong>{specialQuestion}</p>
+                    <p className="text-lg"><strong>Imposter: </strong>{specialPlayer || 'Unknown'}</p>
                     {isOwner && (
-                        <button onClick={nextQuestion}>Next Question</button>
+                        <button onClick={nextQuestion} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Next Question</button>
                     )}
                 </div>
             )}
