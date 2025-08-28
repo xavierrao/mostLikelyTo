@@ -112,9 +112,9 @@ async function selectQuestion(gameId) {
             const seed = `${gameId}-${timestamp}-${attempt}`;
             const examples = getExampleQuestions();
             const exampleText = examples.length > 0
-                ? examples.map((ex, i) => 
+                ? examples.map((ex, i) =>
                     `Example ${i + 1}: {"question": "${ex.question}", "specialQuestion": "${ex.specialQuestion}"}`
-                  ).join('\n')
+                ).join('\n')
                 : 'No examples available.';
             const usedThemesText = Array.from(usedThemes).length > 0
                 ? `Avoid themes: ${Array.from(usedThemes).join(', ')}`
@@ -144,7 +144,10 @@ async function selectQuestion(gameId) {
                     do_sample: true
                 }
             }, {
-                headers: { 'Content-Type': 'application/json' }
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${process.env.HUGGINGFACE_API_TOKEN}`
+                }
             });
 
             let responseText = response.data[0].generated_text.trim();
@@ -159,8 +162,8 @@ async function selectQuestion(gameId) {
             const mainQuestionTheme = getQuestionTheme(questionData.question);
             const specialQuestionTheme = getQuestionTheme(questionData.specialQuestion);
 
-            if (usedQuestions.has(questionKey) || 
-                usedThemes.has(mainQuestionTheme) || 
+            if (usedQuestions.has(questionKey) ||
+                usedThemes.has(mainQuestionTheme) ||
                 usedThemes.has(specialQuestionTheme)) {
                 console.log(`Game ${gameId}: Generated question is a duplicate or has used theme (${mainQuestionTheme}, ${specialQuestionTheme}), retrying (${attempt}/${maxRetries})`);
                 continue;
@@ -184,8 +187,8 @@ async function selectQuestion(gameId) {
     // Fallback to questions.json
     const availableQuestions = questionPool.filter(
         q => !game.usedQuestionIds.includes(q.id) &&
-             !usedThemes.has(getQuestionTheme(q.question)) &&
-             !usedThemes.has(getQuestionTheme(q.specialQuestion))
+            !usedThemes.has(getQuestionTheme(q.question)) &&
+            !usedThemes.has(getQuestionTheme(q.specialQuestion))
     );
 
     if (availableQuestions.length === 0) {
