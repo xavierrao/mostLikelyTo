@@ -9,9 +9,7 @@ const server = http.createServer(app);
 const io = socketIo(server);
 
 // Initialize InferenceClient with HF_TOKEN
-const client = new InferenceClient({
-    token: process.env.HF_TOKEN || '' // Fallback to empty string to avoid undefined errors
-});
+const client = new InferenceClient(process.env.HF_TOKEN || ''); // Fallback to empty string to avoid undefined errors
 
 // Serve static files from the 'public' directory
 app.use(express.static('public'));
