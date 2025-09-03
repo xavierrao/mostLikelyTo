@@ -4,6 +4,7 @@ const socketIo = require('socket.io');
 const fs = require('fs');
 const axios = require('axios');
 const os = require('os');
+const stringSimilarity = require('string-similarity');
 
 const app = express();
 const server = http.createServer(app);
@@ -55,6 +56,7 @@ function generateGameId() {
     return Math.random().toString(36).substring(2, 9);
 }
 
+// Global set and cache for questions across all games
 const globalUsedQuestions = new Set();
 const questionCache = []; // Cache to store unique questions
 
@@ -72,7 +74,7 @@ async function selectQuestion(gameId) {
 
     const usedQuestions = game.usedQuestions || new Set();
     game.usedQuestions = usedQuestions;
-    const maxRetries = 7;
+    const maxRetries = 10; // Increased for more attempts at unique questions
 
     console.log(`Game ${gameId}: Free memory: ${os.freemem() / 1024 / 1024} MB, Total memory: ${os.totalmem() / 1024 / 1024} MB`);
 
@@ -99,7 +101,7 @@ async function selectQuestion(gameId) {
                 .join('\n');
 
             const prompt = `
-        You are a game question generator. Return ONLY a valid JSON object with two fields: "question" and "specialQuestion". The "question" must be positive and aspirational, phrased as "Who is most likely to..." (e.g., "Who is most likely to win a Nobel Prize?"). The "specialQuestion" must be humorous or quirky, phrased as "Who is most likely to..." (e.g., "Who is most likely to forget their own name?"). Generate highly unique and varied questions, avoiding any repetition of previous outputs or examples. Do NOT include any text, markdown, backticks, code blocks (e.g., \`\`\`json or \`\`\`), comments, explanations, or conversational responses like "I'm not sure" or "Could you explain". If you cannot generate the requested output, return an empty JSON object {}.
+        You are a game question generator. Return ONLY a valid JSON object with two fields: "question" and "specialQuestion". The "question" must be positive and aspirational, phrased as "Who is most likely to..." (e.g., "Who is most likely to win a Nobel Prize?"). The "specialQuestion" must be humorous or quirky, phrased as "Who is most likely to..." (e.g., "Who is most likely to forget their own name?"). Generate highly unique and varied questions, avoiding any repetition or similarity to previous outputs, examples, or common themes. Do NOT include any text, markdown, backticks, code blocks (e.g., \`\`\`json or \`\`\`), comments, explanations, or conversational responses like "I'm not sure" or "Could you explain". If you cannot generate the requested output, return an empty JSON object {}.
         Examples:
         ${exampleText}
         Random seed for uniqueness: ${randomSeed}
@@ -112,7 +114,7 @@ async function selectQuestion(gameId) {
                 `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`,
                 {
                     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                    generationConfig: { maxOutputTokens: 500, temperature: 1.2, topP: 1.0 } // Higher temperature for more diversity
+                    generationConfig: { maxOutputTokens: 500, temperature: 1.2, topP: 1.0, frequencyPenalty: 0.5, presencePenalty: 0.5 } // Added penalties for diversity
                 },
                 { headers: { 'Content-Type': 'application/json' } }
             );
@@ -149,8 +151,27 @@ async function selectQuestion(gameId) {
             }
 
             const questionKey = `${questionData.question}|${questionData.specialQuestion}`;
+
+            // Check for exact duplicates
             if (usedQuestions.has(questionKey) || globalUsedQuestions.has(questionKey)) {
-                console.log(`Game ${gameId}: Generated question is a duplicate, retrying (${attempt}/${maxRetries})`);
+                console.log(`Game ${gameId}: Generated question is an exact duplicate, retrying (${attempt}/${maxRetries})`);
+                continue;
+            }
+
+            // Check for similar questions (using string-similarity)
+            let isSimilar = false;
+            for (const existingKey of globalUsedQuestions) {
+                const [existingQuestion, existingSpecial] = existingKey.split('|');
+                const qSimilarity = stringSimilarity.compareTwoStrings(questionData.question, existingQuestion);
+                const sSimilarity = stringSimilarity.compareTwoStrings(questionData.specialQuestion, existingSpecial);
+                if (qSimilarity > 0.7 || sSimilarity > 0.7) { // Threshold for similarity (adjust as needed)
+                    isSimilar = true;
+                    console.log(`Game ${gameId}: Generated question is too similar to existing (${existingKey}), similarity scores: Q=${qSimilarity}, S=${sSimilarity}. Retrying (${attempt}/${maxRetries})`);
+                    break;
+                }
+            }
+
+            if (isSimilar) {
                 continue;
             }
 
