@@ -67,8 +67,8 @@ async function selectQuestion(gameId) {
         return null;
     }
 
-    if (!process.env.GEMINI_API_KEY) {
-        console.error(`Game ${gameId}: GEMINI_API_KEY environment variable is not set`);
+    if (!process.env.GROQ_API_KEY) {
+        console.error(`Game ${gameId}: GROQ_API_KEY environment variable is not set`);
         return selectFromQuestionPool(gameId, game);
     }
 
@@ -108,18 +108,27 @@ async function selectQuestion(gameId) {
         Output: {"question": "<your unique question>", "specialQuestion": "<your unique special question>"}
       `;
 
-            console.log(`Game ${gameId}: Prompt sent to Gemini API (attempt ${attempt}):`, prompt);
+            console.log(`Game ${gameId}: Prompt sent to Groq API (attempt ${attempt}):`, prompt);
 
             const response = await axios.post(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`,
+                'https://api.groq.com/openai/v1/chat/completions',
                 {
-                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-                    generationConfig: { maxOutputTokens: 500, temperature: 1.2, topP: 1.0, frequencyPenalty: 0.5, presencePenalty: 0.5 } // Added penalties for diversity
+                    model: 'llama-3.3-70b-versatile',
+                    messages: [{ role: 'user', content: prompt }],
+                    max_tokens: 500,
+                    temperature: 1.2,
+                    top_p: 1.0,
+                    frequency_penalty: 0.5,
+                    presence_penalty: 0.5
                 },
-                { headers: { 'Content-Type': 'application/json' } }
+                {
+                    headers: {
+                        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
             );
-
-            let responseText = response.data.candidates[0]?.content?.parts[0]?.text || '{}';
+            let responseText = response.data.choices[0]?.message?.content || '{}';
             console.log(`Game ${gameId}: Raw response:`, responseText);
 
             // Strip Markdown code blocks
@@ -132,7 +141,7 @@ async function selectQuestion(gameId) {
             }
 
             if (responseText === '{}' || !responseText.trim()) {
-                console.error(`Game ${gameId}: Empty or invalid response from Gemini API (attempt ${attempt})`);
+                console.error(`Game ${gameId}: Empty or invalid response from Groq API (attempt ${attempt})`);
                 continue;
             }
 
@@ -182,7 +191,7 @@ async function selectQuestion(gameId) {
             console.log(`Game ${gameId}: Generated question: ${questionData.question}, Special question: ${questionData.specialQuestion}`);
             return questionData;
         } catch (error) {
-            console.error(`Game ${gameId}: Error generating question with Gemini API (attempt ${attempt}):`, {
+            console.error(`Game ${gameId}: Error generating question with Groq API (attempt ${attempt}):`, {
                 message: error.message,
                 status: error.response?.status,
                 statusText: error.response?.statusText,
