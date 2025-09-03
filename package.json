@@ -11,6 +11,7 @@
     "axios": "^1.11.0",
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "node-llama-cpp": "^2",
     "ollama": "^0.5.17",
     "socket.io": "^4.8.1"
   },

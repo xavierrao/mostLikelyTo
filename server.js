@@ -3,6 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const fs = require('fs');
 const axios = require('axios');
+const os = require('os');
 
 const app = express();
 const server = http.createServer(app);
@@ -11,370 +12,420 @@ const io = socketIo(server);
 // Serve static files
 app.use(express.static('public'));
 app.get('/app.js', (req, res) => {
-  console.log(`Serving app.js from: public/app.js`);
-  res.sendFile('app.js', { root: 'public' }, (err) => {
-    if (err) {
-      console.error(`Error serving app.js: ${err}`);
-      res.status(404).send('app.js not found');
-    }
-  });
+    console.log(`Serving app.js from: public/app.js`);
+    res.sendFile('app.js', { root: 'public' }, (err) => {
+        if (err) {
+            console.error(`Error serving app.js: ${err}`);
+            res.status(404).send('app.js not found');
+        }
+    });
 });
 app.get('/', (req, res) => {
-  console.log(`Serving index.html`);
-  res.sendFile('index.html', { root: 'public' });
+    console.log(`Serving index.html`);
+    res.sendFile('index.html', { root: 'public' });
 });
 
 const games = {};
 let questionPool = [];
 try {
-  const data = fs.readFileSync('questions.json', 'utf8');
-  questionPool = JSON.parse(data);
-  console.log(`Loaded ${questionPool.length} questions from questions.json`);
+    const data = fs.readFileSync('questions.json', 'utf8');
+    questionPool = JSON.parse(data);
+    console.log(`Loaded ${questionPool.length} questions from questions.json`);
 } catch (err) {
-  console.error('Error loading questions.json:', err.message);
-  questionPool = [];
+    console.error('Error loading questions.json:', err.message);
+    questionPool = [];
 }
 
 const getExampleQuestions = () => {
-  if (questionPool.length === 0) return [];
-  const shuffled = [...questionPool].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, Math.min(3, questionPool.length)).map(q => ({
-    question: q.question,
-    specialQuestion: q.specialQuestion
-  }));
+    if (questionPool.length === 0) return [];
+    const shuffled = [...questionPool].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, Math.min(3, questionPool.length)).map(q => ({
+        question: q.question,
+        specialQuestion: q.specialQuestion
+    }));
 };
 
 const fallbackQuestions = [
-  { question: "Who is the most likely to become a famous inventor?", specialQuestion: "Who is the most likely to forget their own birthday?" },
-  { question: "Who is the most likely to win a marathon?", specialQuestion: "Who is the most likely to trip over their own shoelaces?" },
-  { question: "Who is the most likely to start a successful company?", specialQuestion: "Who is the most likely to lose their keys in their own house?" }
+    { question: "Who is the most likely to become a famous inventor?", specialQuestion: "Who is the most likely to forget their own birthday?" },
+    { question: "Who is the most likely to win a marathon?", specialQuestion: "Who is the most likely to trip over their own shoelaces?" },
+    { question: "Who is the most likely to start a successful company?", specialQuestion: "Who is the most likely to lose their keys in their own house?" }
 ];
 
 function generateGameId() {
-  return Math.random().toString(36).substring(2, 9);
+    return Math.random().toString(36).substring(2, 9);
 }
+
+const globalUsedQuestions = new Set();
+const questionCache = []; // Cache to store unique questions
 
 async function selectQuestion(gameId) {
-  const game = games[gameId];
-  if (!game) {
-    console.error(`Game ${gameId} not found`);
-    return null;
-  }
+    const game = games[gameId];
+    if (!game) {
+        console.error(`Game ${gameId} not found`);
+        return null;
+    }
 
-  const usedQuestions = game.usedQuestions || new Set();
-  game.usedQuestions = usedQuestions;
-  const maxRetries = 3;
-  const ollamaUrl = process.env.OLLAMA_URL || 'http://localhost:11434/api/generate';
+    if (!process.env.GEMINI_API_KEY) {
+        console.error(`Game ${gameId}: GEMINI_API_KEY environment variable is not set`);
+        return selectFromQuestionPool(gameId, game);
+    }
 
-  // Try generating a question with Ollama
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const timestamp = Date.now();
-      const seed = `${gameId}-${timestamp}-${attempt}`;
-      const examples = getExampleQuestions();
-      const exampleText = examples.length > 0
-        ? examples.map((ex, i) =>
-            `Example ${i + 1}: {"question": "${ex.question}", "specialQuestion": "${ex.specialQuestion}"}`
-          ).join('\n')
-        : 'No examples available.';
+    const usedQuestions = game.usedQuestions || new Set();
+    game.usedQuestions = usedQuestions;
+    const maxRetries = 7;
 
-      const prompt = `
-        Return ONLY a valid JSON object with exactly two fields: "question" and "specialQuestion". Do NOT include any text, markdown, backticks, comments, or explanations outside the JSON object. The "question" must be positive and aspirational, suitable for a group game (e.g., "Who is the most likely to win a Nobel Prize?"). The "specialQuestion" must be humorous or quirky, suitable for a group game (e.g., "Who is the most likely to forget their own name?"). Ensure the questions are unique in wording and align in tone with the provided examples.
+    console.log(`Game ${gameId}: Free memory: ${os.freemem() / 1024 / 1024} MB, Total memory: ${os.totalmem() / 1024 / 1024} MB`);
+
+    // Check cache for unique questions
+    while (questionCache.length > 0) {
+        const cachedQuestion = questionCache.shift();
+        const questionKey = `${cachedQuestion.question}|${cachedQuestion.specialQuestion}`;
+        if (!usedQuestions.has(questionKey) && !globalUsedQuestions.has(questionKey)) {
+            usedQuestions.add(questionKey);
+            globalUsedQuestions.add(questionKey);
+            console.log(`Game ${gameId}: Used cached question: ${cachedQuestion.question}`);
+            return cachedQuestion;
+        }
+    }
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const timestamp = Date.now();
+            const randomSeed = `${timestamp}-${Math.random().toString(36).substring(2)}`; // Enhanced random seed
+            const examples = getExampleQuestions();
+            const exampleText = examples
+                .sort(() => Math.random() - 0.5) // Shuffle examples for variety
+                .map((ex, i) => `Example ${i + 1}: {"question": "${ex.question}", "specialQuestion": "${ex.specialQuestion}"}`)
+                .join('\n');
+
+            const prompt = `
+        You are a game question generator. Return ONLY a valid JSON object with two fields: "question" and "specialQuestion". The "question" must be positive and aspirational, phrased as "Who is most likely to..." (e.g., "Who is most likely to win a Nobel Prize?"). The "specialQuestion" must be humorous or quirky, phrased as "Who is most likely to..." (e.g., "Who is most likely to forget their own name?"). Generate highly unique and varied questions, avoiding any repetition of previous outputs or examples. Do NOT include any text, markdown, backticks, code blocks (e.g., \`\`\`json or \`\`\`), comments, explanations, or conversational responses like "I'm not sure" or "Could you explain". If you cannot generate the requested output, return an empty JSON object {}.
+        Examples:
         ${exampleText}
-        Seed: ${seed}
-        {"question": "Who is the most likely to become a famous scientist?", "specialQuestion": "Who is the most likely to trip over their own feet?"}
+        Random seed for uniqueness: ${randomSeed}
+        Output: {"question": "<your unique question>", "specialQuestion": "<your unique special question>"}
       `;
 
-      const response = await axios.post(ollamaUrl, {
-        model: process.env.OLLAMA_MODEL || 'gemma2:2b',
-        prompt,
-        stream: false,
-        options: {
-          temperature: 0.7,
-          top_p: 0.9,
-          num_ctx: 512,
-          max_tokens: 300
+            console.log(`Game ${gameId}: Prompt sent to Gemini API (attempt ${attempt}):`, prompt);
+
+            const response = await axios.post(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(process.env.GEMINI_API_KEY)}`,
+                {
+                    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                    generationConfig: { maxOutputTokens: 500, temperature: 1.2, topP: 1.0 } // Higher temperature for more diversity
+                },
+                { headers: { 'Content-Type': 'application/json' } }
+            );
+
+            let responseText = response.data.candidates[0]?.content?.parts[0]?.text || '{}';
+            console.log(`Game ${gameId}: Raw response:`, responseText);
+
+            // Strip Markdown code blocks
+            responseText = responseText.replace(/```json\n|```\n/g, '').trim();
+            console.log(`Game ${gameId}: Cleaned response:`, responseText);
+
+            if (responseText.includes("I'm not sure") || responseText.includes("Could you explain")) {
+                console.error(`Game ${gameId}: API returned conversational response: ${responseText} (attempt ${attempt})`);
+                continue;
+            }
+
+            if (responseText === '{}' || !responseText.trim()) {
+                console.error(`Game ${gameId}: Empty or invalid response from Gemini API (attempt ${attempt})`);
+                continue;
+            }
+
+            let questionData;
+            try {
+                questionData = JSON.parse(responseText);
+                if (!questionData.question || !questionData.specialQuestion) {
+                    throw new Error('Missing required fields in JSON');
+                }
+                if (!questionData.question.startsWith('Who is most likely to') || !questionData.specialQuestion.startsWith('Who is most likely to')) {
+                    throw new Error('Questions do not follow required "Who is most likely to..." format');
+                }
+            } catch (parseError) {
+                console.error(`Game ${gameId}: JSON parse error: ${parseError.message}`);
+                continue;
+            }
+
+            const questionKey = `${questionData.question}|${questionData.specialQuestion}`;
+            if (usedQuestions.has(questionKey) || globalUsedQuestions.has(questionKey)) {
+                console.log(`Game ${gameId}: Generated question is a duplicate, retrying (${attempt}/${maxRetries})`);
+                continue;
+            }
+
+            // Add to cache for future rounds
+            questionCache.push(questionData);
+            usedQuestions.add(questionKey);
+            globalUsedQuestions.add(questionKey);
+            console.log(`Game ${gameId}: Generated question: ${questionData.question}, Special question: ${questionData.specialQuestion}`);
+            return questionData;
+        } catch (error) {
+            console.error(`Game ${gameId}: Error generating question with Gemini API (attempt ${attempt}):`, {
+                message: error.message,
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data
+            });
         }
-      }, {
-        timeout: 30000 // 30-second timeout
-      });
-
-      let questionData;
-      try {
-        questionData = JSON.parse(response.data.response.trim());
-      } catch (parseError) {
-        const jsonMatch = response.data.response.match(/\{(?:[^{}]|\{[^{}]*\})*\}/);
-        if (!jsonMatch) throw new Error('Invalid JSON response: No valid JSON found');
-        questionData = JSON.parse(jsonMatch[0]);
-      }
-
-      if (!questionData.question || !questionData.specialQuestion) {
-        throw new Error('Missing required fields in JSON');
-      }
-
-      const questionKey = `${questionData.question}|${questionData.specialQuestion}`;
-      if (usedQuestions.has(questionKey)) {
-        console.log(`Game ${gameId}: Generated question is a duplicate, retrying (${attempt}/${maxRetries})`);
-        continue;
-      }
-
-      usedQuestions.add(questionKey);
-      console.log(`Game ${gameId}: Generated question: ${questionData.question}`);
-      return questionData;
-    } catch (error) {
-      console.error(`Game ${gameId}: Error generating question with Ollama (attempt ${attempt}): ${error.message}`);
     }
-  }
 
-  // Fallback to questions.json
-  console.warn(`Game ${gameId}: Ollama failed, falling back to question pool`);
-  const availableQuestions = questionPool.filter(
-    q => !usedQuestions.has(`${q.question}|${q.specialQuestion}`)
-  );
-
-  if (availableQuestions.length === 0) {
-    const availableFallbacks = fallbackQuestions.filter(
-      q => !usedQuestions.has(`${q.question}|${q.specialQuestion}`)
-    );
-    if (availableFallbacks.length > 0) {
-      const randomIndex = Math.floor(Math.random() * availableFallbacks.length);
-      const selectedQuestion = availableFallbacks[randomIndex];
-      usedQuestions.add(`${selectedQuestion.question}|${selectedQuestion.specialQuestion}`);
-      console.log(`Game ${gameId}: Using fallback question: ${selectedQuestion.question}`);
-      return selectedQuestion;
-    }
-    console.log(`Game ${gameId}: No more unique questions available`);
-    io.to(gameId).emit('gameState', { ...game, noMoreQuestions: true });
-    return null;
-  }
-
-  const randomIndex = Math.floor(Math.random() * availableQuestions.length);
-  const selectedQuestion = availableQuestions[randomIndex];
-  usedQuestions.add(`${selectedQuestion.question}|${selectedQuestion.specialQuestion}`);
-  console.log(`Game ${gameId}: Selected question from pool: ${selectedQuestion.question}`);
-  return selectedQuestion;
+    // Fallback to questions.json
+    return selectFromQuestionPool(gameId, game);
 }
 
-// Socket.io logic (unchanged)
+function selectFromQuestionPool(gameId, game) {
+    const usedQuestions = game.usedQuestions || new Set();
+    const availableQuestions = questionPool.filter(
+        q => !usedQuestions.has(`${q.question}|${q.specialQuestion}`) && !globalUsedQuestions.has(`${q.question}|${q.specialQuestion}`)
+    );
+
+    if (availableQuestions.length === 0) {
+        const availableFallbacks = fallbackQuestions.filter(
+            q => !usedQuestions.has(`${q.question}|${q.specialQuestion}`) && !globalUsedQuestions.has(`${q.question}|${q.specialQuestion}`)
+        );
+        if (availableFallbacks.length > 0) {
+            const randomIndex = Math.floor(Math.random() * availableFallbacks.length);
+            const selectedQuestion = availableFallbacks[randomIndex];
+            const questionKey = `${selectedQuestion.question}|${selectedQuestion.specialQuestion}`;
+            usedQuestions.add(questionKey);
+            globalUsedQuestions.add(questionKey);
+            console.log(`Game ${gameId}: Using fallback question: ${selectedQuestion.question}`);
+            return selectedQuestion;
+        }
+        console.log(`Game ${gameId}: No more unique questions available`);
+        io.to(gameId).emit('gameState', { ...game, noMoreQuestions: true });
+        return null;
+    }
+
+    const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+    const selectedQuestion = availableQuestions[randomIndex];
+    const questionKey = `${selectedQuestion.question}|${selectedQuestion.specialQuestion}`;
+    usedQuestions.add(questionKey);
+    globalUsedQuestions.add(questionKey);
+    console.log(`Game ${gameId}: Selected question from pool: ${selectedQuestion.question}`);
+    return selectedQuestion;
+}
+
 io.on('connection', (socket) => {
-  socket.on('createGame', (playerName) => {
-    const gameId = generateGameId();
-    games[gameId] = {
-      players: [playerName],
-      points: { [playerName]: 0 },
-      state: 'waiting',
-      owner: playerName,
-      usedQuestions: new Set(),
-      mainQuestion: '',
-      specialPlayer: null,
-      specialQuestion: '',
-      votes: {},
-      guessVotes: {},
-      noMoreQuestions: false
-    };
-    socket.join(gameId);
-    socket.playerName = playerName;
-    socket.emit('gameState', { ...games[gameId], gameId });
-  });
-
-  socket.on('joinGame', ({ gameId, playerName }) => {
-    if (!games[gameId]) {
-      socket.emit('error', 'Game not found');
-      return;
-    }
-    if (games[gameId].players.includes(playerName)) {
-      socket.emit('error', 'Name already taken');
-      return;
-    }
-    games[gameId].players.push(playerName);
-    games[gameId].points[playerName] = 0;
-    games[gameId].state = 'waiting';
-    socket.join(gameId);
-    socket.playerName = playerName;
-    io.to(gameId).emit('gameState', games[gameId]);
-  });
-
-  socket.on('startGame', async (gameId) => {
-    if (!games[gameId] || games[gameId].owner !== socket.playerName) {
-      socket.emit('error', 'Only the game owner can start the game');
-      return;
-    }
-    const game = games[gameId];
-    game.state = 'question';
-    game.votes = {};
-    game.guessVotes = {};
-    const questionObj = await selectQuestion(gameId);
-    if (!questionObj) {
-      socket.emit('error', 'No more unique questions available.');
-      return;
-    }
-    game.mainQuestion = questionObj.question;
-    console.log(`Game ${gameId}: Set mainQuestion to ${game.mainQuestion}`);
-    game.specialPlayer = game.players[Math.floor(Math.random() * game.players.length)];
-    game.specialQuestion = questionObj.specialQuestion;
-    console.log(`Game ${gameId}: Special player selected: ${game.specialPlayer}`);
-    game.players.forEach(player => {
-      const playerSocket = Array.from(io.sockets.sockets.values())
-        .find(s => s.playerName === player && s.rooms.has(gameId));
-      if (playerSocket) {
-        playerSocket.emit('gameState', {
-          ...game,
-          isSpecialPlayer: player === game.specialPlayer,
-          specialPlayer: game.specialPlayer
-        });
-      }
+    socket.on('createGame', (playerName) => {
+        const gameId = generateGameId();
+        games[gameId] = {
+            players: [playerName],
+            points: { [playerName]: 0 },
+            state: 'waiting',
+            owner: playerName,
+            usedQuestions: new Set(),
+            mainQuestion: '',
+            specialPlayer: null,
+            specialQuestion: '',
+            votes: {},
+            guessVotes: {},
+            noMoreQuestions: false
+        };
+        socket.join(gameId);
+        socket.playerName = playerName;
+        socket.emit('gameState', { ...games[gameId], gameId });
     });
-  });
 
-  socket.on('vote', ({ gameId, votedPlayer }) => {
-    if (!games[gameId] || !games[gameId].players.includes(socket.playerName)) return;
-    const game = games[gameId];
-    if (game.state !== 'question') return;
-    if (!game.players.includes(votedPlayer)) {
-      socket.emit('error', 'Invalid player selected');
-      return;
-    }
-    game.votes[socket.playerName] = votedPlayer;
-    console.log(`Game ${gameId}: ${socket.playerName} voted for ${votedPlayer}`);
-    if (Object.keys(game.votes).length === game.players.length) {
-      game.state = 'guessFake';
-      game.guessVotes = {};
-      game.players.forEach(player => {
-        const playerSocket = Array.from(io.sockets.sockets.values())
-          .find(s => s.playerName === player && s.rooms.has(gameId));
-        if (playerSocket) {
-          playerSocket.emit('gameState', {
-            ...game,
-            isSpecialPlayer: player === game.specialPlayer,
-            specialPlayer: game.specialPlayer
-          });
+    socket.on('joinGame', ({ gameId, playerName }) => {
+        if (!games[gameId]) {
+            socket.emit('error', 'Game not found');
+            return;
         }
-      });
-    } else {
-      game.players.forEach(player => {
-        const playerSocket = Array.from(io.sockets.sockets.values())
-          .find(s => s.playerName === player && s.rooms.has(gameId));
-        if (playerSocket) {
-          playerSocket.emit('gameState', {
-            ...game,
-            isSpecialPlayer: player === game.specialPlayer,
-            specialPlayer: game.specialPlayer
-          });
+        if (games[gameId].players.includes(playerName)) {
+            socket.emit('error', 'Name already taken');
+            return;
         }
-      });
-    }
-  });
-
-  socket.on('guessVote', ({ gameId, guessedPlayer }) => {
-    if (!games[gameId] || !games[gameId].players.includes(socket.playerName)) return;
-    const game = games[gameId];
-    if (game.state !== 'guessFake') return;
-    if (socket.playerName === game.specialPlayer) {
-      socket.emit('error', 'You cannot vote as the special player');
-      return;
-    }
-    if (!game.players.includes(guessedPlayer)) {
-      socket.emit('error', 'Invalid player selected');
-      return;
-    }
-    game.guessVotes[socket.playerName] = guessedPlayer;
-    console.log(`Game ${gameId}: ${socket.playerName} guessed ${guessedPlayer} had the fake question`);
-    const nonSpecialPlayers = game.players.filter(p => p !== game.specialPlayer);
-    if (Object.keys(game.guessVotes).length === nonSpecialPlayers.length) {
-      Object.keys(game.guessVotes).forEach(voter => {
-        if (game.guessVotes[voter] === game.specialPlayer) {
-          game.points[voter] = (game.points[voter] || 0) + 1;
-        }
-      });
-      const nonVoters = nonSpecialPlayers.filter(p => game.guessVotes[p] !== game.specialPlayer);
-      game.points[game.specialPlayer] = (game.points[game.specialPlayer] || 0) + nonVoters.length;
-      game.players.sort((a, b) => (game.points[b] || 0) - (game.points[a] || 0));
-      game.state = 'finalReveal';
-      game.players.forEach(player => {
-        const playerSocket = Array.from(io.sockets.sockets.values())
-          .find(s => s.playerName === player && s.rooms.has(gameId));
-        if (playerSocket) {
-          playerSocket.emit('gameState', {
-            ...game,
-            isSpecialPlayer: player === game.specialPlayer,
-            specialPlayer: game.specialPlayer
-          });
-        }
-      });
-    } else {
-      game.players.forEach(player => {
-        const playerSocket = Array.from(io.sockets.sockets.values())
-          .find(s => s.playerName === player && s.rooms.has(gameId));
-        if (playerSocket) {
-          playerSocket.emit('gameState', {
-            ...game,
-            isSpecialPlayer: player === game.specialPlayer,
-            specialPlayer: game.specialPlayer
-          });
-        }
-      });
-    }
-  });
-
-  socket.on('nextQuestion', async (gameId) => {
-    if (!games[gameId] || games[gameId].owner !== socket.playerName) {
-      socket.emit('error', 'Only the game owner can advance to the next question');
-      return;
-    }
-    const game = games[gameId];
-    if (game.state !== 'finalReveal') return;
-    game.state = 'question';
-    game.votes = {};
-    game.guessVotes = {};
-    const questionObj = await selectQuestion(gameId);
-    if (!questionObj) {
-      socket.emit('error', 'No more unique questions available.');
-      return;
-    }
-    game.mainQuestion = questionObj.question;
-    console.log(`Game ${gameId}: Set mainQuestion to ${game.mainQuestion}`);
-    game.specialPlayer = game.players[Math.floor(Math.random() * game.players.length)];
-    game.specialQuestion = questionObj.specialQuestion;
-    console.log(`Game ${gameId}: Special player selected: ${game.specialPlayer}`);
-    game.players.forEach(player => {
-      const playerSocket = Array.from(io.sockets.sockets.values())
-        .find(s => s.playerName === player && s.rooms.has(gameId));
-      if (playerSocket) {
-        playerSocket.emit('gameState', {
-          ...game,
-          isSpecialPlayer: player === game.specialPlayer,
-          specialPlayer: game.specialPlayer
-        });
-      }
+        games[gameId].players.push(playerName);
+        games[gameId].points[playerName] = 0;
+        games[gameId].state = 'waiting';
+        socket.join(gameId);
+        socket.playerName = playerName;
+        io.to(gameId).emit('gameState', games[gameId]);
     });
-  });
 
-  socket.on('disconnect', () => {
-    for (const gameId in games) {
-      const game = games[gameId];
-      const index = game.players.indexOf(socket.playerName);
-      if (index !== -1) {
-        game.players.splice(index, 1);
-        delete game.votes[socket.playerName];
-        delete game.guessVotes[socket.playerName];
-        delete game.points[socket.playerName];
-        if (game.players.length === 0) {
-          delete games[gameId];
+    socket.on('startGame', async (gameId) => {
+        if (!games[gameId] || games[gameId].owner !== socket.playerName) {
+            socket.emit('error', 'Only the game owner can start the game');
+            return;
+        }
+        const game = games[gameId];
+        game.state = 'question';
+        game.votes = {};
+        game.guessVotes = {};
+        const questionObj = await selectQuestion(gameId);
+        if (!questionObj) {
+            socket.emit('error', 'No more unique questions available.');
+            return;
+        }
+        game.mainQuestion = questionObj.question;
+        console.log(`Game ${gameId}: Set mainQuestion to ${game.mainQuestion}`);
+        game.specialPlayer = game.players[Math.floor(Math.random() * game.players.length)];
+        game.specialQuestion = questionObj.specialQuestion;
+        console.log(`Game ${gameId}: Special player selected: ${game.specialPlayer}`);
+        game.players.forEach(player => {
+            const playerSocket = Array.from(io.sockets.sockets.values())
+                .find(s => s.playerName === player && s.rooms.has(gameId));
+            if (playerSocket) {
+                playerSocket.emit('gameState', {
+                    ...game,
+                    isSpecialPlayer: player === game.specialPlayer,
+                    specialPlayer: game.specialPlayer
+                });
+            }
+        });
+    });
+
+    socket.on('vote', ({ gameId, votedPlayer }) => {
+        if (!games[gameId] || !games[gameId].players.includes(socket.playerName)) return;
+        const game = games[gameId];
+        if (game.state !== 'question') return;
+        if (!game.players.includes(votedPlayer)) {
+            socket.emit('error', 'Invalid player selected');
+            return;
+        }
+        game.votes[socket.playerName] = votedPlayer;
+        console.log(`Game ${gameId}: ${socket.playerName} voted for ${votedPlayer}`);
+        if (Object.keys(game.votes).length === game.players.length) {
+            game.state = 'guessFake';
+            game.guessVotes = {};
+            game.players.forEach(player => {
+                const playerSocket = Array.from(io.sockets.sockets.values())
+                    .find(s => s.playerName === player && s.rooms.has(gameId));
+                if (playerSocket) {
+                    playerSocket.emit('gameState', {
+                        ...game,
+                        isSpecialPlayer: player === game.specialPlayer,
+                        specialPlayer: game.specialPlayer
+                    });
+                }
+            });
         } else {
-          game.state = game.players.length > 1 ? 'waiting' : 'joining';
-          game.players.sort((a, b) => (game.points[b] || 0) - (game.points[a] || 0));
-          io.to(gameId).emit('gameState', { ...game, specialPlayer: game.specialPlayer });
+            game.players.forEach(player => {
+                const playerSocket = Array.from(io.sockets.sockets.values())
+                    .find(s => s.playerName === player && s.rooms.has(gameId));
+                if (playerSocket) {
+                    playerSocket.emit('gameState', {
+                        ...game,
+                        isSpecialPlayer: player === game.specialPlayer,
+                        specialPlayer: game.specialPlayer
+                    });
+                }
+            });
         }
-      }
-    }
-  });
+    });
 
-  socket.on('error', (err) => {
-    console.error('Socket error:', err);
-  });
+    socket.on('guessVote', ({ gameId, guessedPlayer }) => {
+        if (!games[gameId] || !games[gameId].players.includes(socket.playerName)) return;
+        const game = games[gameId];
+        if (game.state !== 'guessFake') return;
+        if (socket.playerName === game.specialPlayer) {
+            socket.emit('error', 'You cannot vote as the special player');
+            return;
+        }
+        if (!game.players.includes(guessedPlayer)) {
+            socket.emit('error', 'Invalid player selected');
+            return;
+        }
+        game.guessVotes[socket.playerName] = guessedPlayer;
+        console.log(`Game ${gameId}: ${socket.playerName} guessed ${guessedPlayer} had the fake question`);
+        const nonSpecialPlayers = game.players.filter(p => p !== game.specialPlayer);
+        if (Object.keys(game.guessVotes).length === nonSpecialPlayers.length) {
+            Object.keys(game.guessVotes).forEach(voter => {
+                if (game.guessVotes[voter] === game.specialPlayer) {
+                    game.points[voter] = (game.points[voter] || 0) + 1;
+                }
+            });
+            const nonVoters = nonSpecialPlayers.filter(p => game.guessVotes[p] !== game.specialPlayer);
+            game.points[game.specialPlayer] = (game.points[game.specialPlayer] || 0) + nonVoters.length;
+            game.players.sort((a, b) => (game.points[b] || 0) - (game.points[a] || 0));
+            game.state = 'finalReveal';
+            game.players.forEach(player => {
+                const playerSocket = Array.from(io.sockets.sockets.values())
+                    .find(s => s.playerName === player && s.rooms.has(gameId));
+                if (playerSocket) {
+                    playerSocket.emit('gameState', {
+                        ...game,
+                        isSpecialPlayer: player === game.specialPlayer,
+                        specialPlayer: game.specialPlayer
+                    });
+                }
+            });
+        } else {
+            game.players.forEach(player => {
+                const playerSocket = Array.from(io.sockets.sockets.values())
+                    .find(s => s.playerName === player && s.rooms.has(gameId));
+                if (playerSocket) {
+                    playerSocket.emit('gameState', {
+                        ...game,
+                        isSpecialPlayer: player === game.specialPlayer,
+                        specialPlayer: game.specialPlayer
+                    });
+                }
+            });
+        }
+    });
+
+    socket.on('nextQuestion', async (gameId) => {
+        if (!games[gameId] || games[gameId].owner !== socket.playerName) {
+            socket.emit('error', 'Only the game owner can advance to the next question');
+            return;
+        }
+        const game = games[gameId];
+        if (game.state !== 'finalReveal') return;
+        game.state = 'question';
+        game.votes = {};
+        game.guessVotes = {};
+        const questionObj = await selectQuestion(gameId);
+        if (!questionObj) {
+            socket.emit('error', 'No more unique questions available.');
+            return;
+        }
+        game.mainQuestion = questionObj.question;
+        console.log(`Game ${gameId}: Set mainQuestion to ${game.mainQuestion}`);
+        game.specialPlayer = game.players[Math.floor(Math.random() * game.players.length)];
+        game.specialQuestion = questionObj.specialQuestion;
+        console.log(`Game ${gameId}: Special player selected: ${game.specialPlayer}`);
+        game.players.forEach(player => {
+            const playerSocket = Array.from(io.sockets.sockets.values())
+                .find(s => s.playerName === player && s.rooms.has(gameId));
+            if (playerSocket) {
+                playerSocket.emit('gameState', {
+                    ...game,
+                    isSpecialPlayer: player === game.specialPlayer,
+                    specialPlayer: game.specialPlayer
+                });
+            }
+        });
+    });
+
+    socket.on('disconnect', () => {
+        for (const gameId in games) {
+            const game = games[gameId];
+            const index = game.players.indexOf(socket.playerName);
+            if (index !== -1) {
+                game.players.splice(index, 1);
+                delete game.votes[socket.playerName];
+                delete game.guessVotes[socket.playerName];
+                delete game.points[socket.playerName];
+                if (game.players.length === 0) {
+                    delete games[gameId];
+                } else {
+                    game.state = game.players.length > 1 ? 'waiting' : 'joining';
+                    game.players.sort((a, b) => (game.points[b] || 0) - (game.points[a] || 0));
+                    io.to(gameId).emit('gameState', { ...game, specialPlayer: game.specialPlayer });
+                }
+            }
+        }
+    });
+
+    socket.on('error', (err) => {
+        console.error('Socket error:', err);
+    });
 });
 
-const port = process.env.PORT || 8080;
-server.listen(port, '0.0.0.0', () => {
-  console.log(`Server running on port ${port}`);
+const port = process.env.PORT || 3000;
+server.listen(port, () => {
+    console.log(`Server running on port ${port}`);
 });
