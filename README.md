@@ -75,6 +75,7 @@ Play the game at: [https://mostlikelyto.xavierrao.com/](https://mostlikelyto.xav
 - `index.html`: Entry point for the frontend.
 - `questions.json`: Fallback pool of predefined questions.
 - `package.json`: Dependencies and scripts.
+- `package-lock.json`: Lockfile specifying exact versions of dependencies and their sub-dependencies.
 - `public/`: Static assets (served by Express).
 
 ## Dependencies
