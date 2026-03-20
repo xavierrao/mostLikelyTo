@@ -27,6 +27,19 @@ app.get('/', (req, res) => {
 });
 
 const games = {};
+
+const GAME_TIMEOUT_MS = 60 * 60 * 1000;
+
+function resetGameTimeout(gameId) {
+    const game = games[gameId];
+    if (!game) return;
+    if (game.timeoutHandle) clearTimeout(game.timeoutHandle);
+    game.timeoutHandle = setTimeout(() => {
+        console.log(`Game ${gameId}: Deleting due to inactivity`);
+        delete games[gameId];
+    }, GAME_TIMEOUT_MS);
+}
+
 let questionPool = [];
 try {
     const data = fs.readFileSync('questions.json', 'utf8');
@@ -270,6 +283,7 @@ io.on('connection', (socket) => {
         socket.join(gameId);
         socket.playerName = playerName;
         socket.emit('gameState', { ...games[gameId], gameId });
+        resetGameTimeout(gameId);
     });
 
     socket.on('joinGame', ({ gameId, playerName }) => {
@@ -287,6 +301,7 @@ io.on('connection', (socket) => {
         socket.join(gameId);
         socket.playerName = playerName;
         io.to(gameId).emit('gameState', games[gameId]);
+        resetGameTimeout(gameId);
     });
 
     socket.on('startGame', async (gameId) => {
@@ -319,6 +334,7 @@ io.on('connection', (socket) => {
                 });
             }
         });
+        resetGameTimeout(gameId);
     });
 
     socket.on('vote', ({ gameId, votedPlayer }) => {
@@ -358,6 +374,7 @@ io.on('connection', (socket) => {
                 }
             });
         }
+        resetGameTimeout(gameId);
     });
 
     socket.on('guessVote', ({ gameId, guessedPlayer }) => {
@@ -412,6 +429,7 @@ io.on('connection', (socket) => {
                 }
             });
         }
+        resetGameTimeout(gameId);
     });
 
     socket.on('nextQuestion', async (gameId) => {
@@ -445,6 +463,7 @@ io.on('connection', (socket) => {
                 });
             }
         });
+        resetGameTimeout(gameId);
     });
 
     socket.on('disconnect', () => {
