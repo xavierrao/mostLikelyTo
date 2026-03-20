@@ -53,6 +53,15 @@ const App = () => {
             setTimeout(() => setError(''), 5000);
         });
 
+        newSocket.on('gameExpired', () => {
+            setGameState('joining');
+            setGameId('');
+            setPlayers([]);
+            setPoints({});
+            setError('Game ended due to inactivity');
+            setTimeout(() => setError(''), 5000);
+        });
+
         return () => newSocket.disconnect();
     }, [playerName]);
 

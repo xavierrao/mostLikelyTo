@@ -27,18 +27,19 @@ app.get('/', (req, res) => {
 });
 
 const games = {};
-
+const gameTimeouts = {};
 const GAME_TIMEOUT_MS = 60 * 60 * 1000;
 
 function resetGameTimeout(gameId) {
-    const game = games[gameId];
-    if (!game) return;
-    if (game.timeoutHandle) clearTimeout(game.timeoutHandle);
-    game.timeoutHandle = setTimeout(() => {
+    if (gameTimeouts[gameId]) clearTimeout(gameTimeouts[gameId]);
+    gameTimeouts[gameId] = setTimeout(() => {
         console.log(`Game ${gameId}: Deleting due to inactivity`);
+        io.to(gameId).emit('gameExpired');
         delete games[gameId];
+        delete gameTimeouts[gameId];
     }, GAME_TIMEOUT_MS);
 }
+
 
 let questionPool = [];
 try {
