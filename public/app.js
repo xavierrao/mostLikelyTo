@@ -1,4 +1,10 @@
-const { useState, useEffect } = React;
+const { useState, useEffect, useCallback } = React;
+
+const COLORS = {
+    accent: '#52796f',
+    accentGreen: '#bc6c25',
+    textMuted: '#7a8c82',
+};
 
 const App = () => {
     const [socket, setSocket] = useState(null);
@@ -12,6 +18,7 @@ const App = () => {
     const [isSpecialPlayer, setIsSpecialPlayer] = useState(false);
     const [error, setError] = useState('');
     const [noMoreQuestions, setNoMoreQuestions] = useState(false);
+    const [copied, setCopied] = useState(false);
     const [votes, setVotes] = useState({});
     const [guessVotes, setGuessVotes] = useState({});
     const [specialPlayer, setSpecialPlayer] = useState(null);
@@ -22,7 +29,6 @@ const App = () => {
         setSocket(newSocket);
 
         newSocket.on('gameState', ({ state, players, mainQuestion, specialQuestion, gameId: receivedGameId, isSpecialPlayer, noMoreQuestions, owner, votes, guessVotes, specialPlayer, points }) => {
-            console.log(`Player ${playerName}: State=${state}, isSpecialPlayer=${isSpecialPlayer}, mainQuestion=${mainQuestion}, specialPlayer=${specialPlayer}`);
             setGameState(state);
             setPlayers(players);
             setMainQuestion(mainQuestion || '');
@@ -51,181 +57,213 @@ const App = () => {
     }, [playerName]);
 
     const createGame = () => {
-        if (playerName.trim()) {
-            socket.emit('createGame', playerName);
-        } else {
-            setError('Please enter your name');
-            setTimeout(() => setError(''), 5000);
-        }
+        if (playerName.trim()) socket.emit('createGame', playerName);
+        else { setError('Please enter your name'); setTimeout(() => setError(''), 5000); }
     };
 
     const joinGame = () => {
-        if (playerName.trim() && gameId.trim()) {
-            socket.emit('joinGame', { gameId, playerName });
-        } else {
-            setError('Please enter your name and game ID');
-            setTimeout(() => setError(''), 5000);
-        }
+        if (playerName.trim() && gameId.trim()) socket.emit('joinGame', { gameId, playerName });
+        else { setError('Please enter your name and game ID'); setTimeout(() => setError(''), 5000); }
     };
 
-    const startGame = () => {
-        console.log('Start Game clicked');
-        socket.emit('startGame', gameId);
-    };
+    const vote = (p) => socket.emit('vote', { gameId, votedPlayer: p });
+    const guessVote = (p) => socket.emit('guessVote', { gameId, guessedPlayer: p });
+    const startGame = () => socket.emit('startGame', gameId);
+    const nextQuestion = () => socket.emit('nextQuestion', gameId);
 
-    const vote = (votedPlayer) => {
-        socket.emit('vote', { gameId, votedPlayer });
-    };
-
-    const guessVote = (guessedPlayer) => {
-        socket.emit('guessVote', { gameId, guessedPlayer });
-    };
-
-    const nextQuestion = () => {
-        console.log('Next Question clicked');
-        socket.emit('nextQuestion', gameId);
-    };
+    const PlayerList = ({ showVotes = false, showGuesses = false }) => (
+        <div className="player-list">
+            {players.map((player) => (
+                <div key={player} className={`player-row ${player === playerName ? 'is-me' : ''}`}>
+                    <div className="player-score">{points[player] || 0}</div>
+                    <span className={`player-name ${player === playerName ? 'me' : ''}`}>
+                        {player}{player === playerName ? ' (you)' : ''}
+                    </span>
+                    {showVotes && votes[player] && (
+                        <span className="player-vote-label">voted</span>
+                    )}
+                    {showVotes && (
+                        <span className="player-vote-val">{votes[player] || '—'}</span>
+                    )}
+                    {showGuesses && (
+                        <span className="player-guess-val">{guessVotes[player] || '—'}</span>
+                    )}
+                </div>
+            ))}
+        </div>
+    );
 
     return (
-        <div className="container mx-auto p-4 max-w-2xl">
-            <style>{`
-                .player-grid {
-                    display: grid !important;
-                    grid-template-columns: 50px 1fr 70px 100px 70px 100px !important;
-                }
-            `}</style>
-            <h1 className="text-3xl font-bold mb-4 text-center">Most Likely To Game</h1>
-            {gameId && <p className="text-lg mb-2">Game ID: {gameId}</p>}
-            {error && <p className="text-red-500 mb-2">{error}</p>}
+        <div className="app-wrap">
+            <h1 className="page-title">Most Likely To</h1>
+            <p className="page-subtitle">The Social Deduction Party Game</p>
 
-            {noMoreQuestions && (
-                <p className="text-red-500 mb-2">No more unique questions available. Please end the game or start a new one.</p>
+            {gameId && (
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <div
+                        className="game-id-badge"
+                        onClick={() => {
+                            navigator.clipboard.writeText(gameId);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                        }}
+                        title="Click to copy"
+                        style={{ cursor: 'pointer' }}
+                    >
+                        🎮 Game ID: <strong>{gameId}</strong>
+                        {copied ? (
+                            <span style={{ marginLeft: 6, color: '#bc6c25', fontSize: '0.8rem', fontWeight: 600 }}>Copied!</span>
+                        ) : (
+                            <svg style={{ marginLeft: 6, width: 14, height: 14, opacity: 0.5, flexShrink: 0 }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        )}
+                    </div>
+                </div>
             )}
 
+            {error && <div className="alert alert-error">⚠️ {error}</div>}
+            {noMoreQuestions && (
+                <div className="alert alert-warning">
+                    🃏 No more questions available. Start a new game!
+                </div>
+            )}
             {gameState === 'joining' && (
-                <div className="space-y-4">
+                <div className="card">
+                    <div className="section-label">Enter the game</div>
                     <input
+                        className="input-field"
                         type="text"
-                        placeholder="Your Name"
+                        placeholder="Your name"
                         value={playerName}
                         onChange={(e) => setPlayerName(e.target.value)}
-                        className="border p-2 w-full rounded"
                     />
                     <input
+                        className="input-field"
                         type="text"
                         placeholder="Game ID (leave blank to create)"
                         value={gameId}
                         onChange={(e) => setGameId(e.target.value)}
-                        className="border p-2 w-full rounded"
                     />
-                    <div className="flex gap-4 justify-center">
-                        <button onClick={createGame} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Create Game</button>
-                        <button onClick={joinGame} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Join Game</button>
+                    <div className="btn-row" style={{ marginTop: 4 }}>
+                        <button onClick={createGame} className="btn btn-primary">Create Game</button>
+                        <button onClick={joinGame} className="btn btn-secondary">Join Game</button>
                     </div>
                 </div>
             )}
-
             {gameState === 'waiting' && (
-                <div className="space-y-4">
-                    <h2 className="text-2xl font-semibold">Players: {players.length}</h2>
-                    <div className="space-y-2">
-                        {players.map((player) => (
-                            <div key={player} className="text-lg">
-                                <span className="font-bold">({points[player] || 0})</span> <span className={player === playerName ? 'underline truncate' : 'truncate'}>{player}</span>
-                            </div>
-                        ))}
+                <div className="card">
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+                        <div className="section-label" style={{ marginBottom: 0 }}>Players</div>
+                        <span className="count-badge">{players.length}</span>
                     </div>
+                    <PlayerList />
+                    <hr className="divider" />
                     {isOwner ? (
-                        <button onClick={startGame} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Start Game</button>
+                        <button onClick={startGame} className="btn btn-primary btn-full">
+                            🚀 Start Game
+                        </button>
                     ) : (
-                        <p className="text-lg">Waiting for the game owner to start...</p>
+                        <p className="waiting-hint">⏳ Waiting for the host to start…</p>
                     )}
                 </div>
             )}
-
             {gameState === 'question' && !noMoreQuestions && (
-                <div className="space-y-4">
-                    <h2 className="text-2xl font-semibold">Players: {players.length}</h2>
-                    <div className="space-y-2">
-                        {players.map((player) => (
-                            <div key={player} className="text-lg">
-                                <span className="font-bold">({points[player] || 0})</span> <span className={player === playerName ? 'underline truncate' : 'truncate'}>{player}</span>
-                            </div>
-                        ))}
+                <div>
+                    <div className="card">
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+                            <div className="section-label" style={{ marginBottom: 0 }}>Players</div>
+                            <span className="count-badge">{players.length}</span>
+                        </div>
+                        <PlayerList />
                     </div>
-                    <p className="text-lg"><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
-                    <p className="text-lg">Vote for who you think this is:</p>
-                    <div className="flex flex-wrap gap-2">
-                        {players.map((player) => (
-                            <button
-                                key={player}
-                                onClick={() => vote(player)}
-                                className={`px-4 py-2 rounded text-white ${votes[playerName] === player ? 'bg-green-500' : 'bg-blue-500 hover:bg-blue-600'}`}
-                            >
-                                {player}
-                            </button>
-                        ))}
+
+                    <div className="question-card">
+                        <div className="question-tag">❓ Your Question</div>
+                        <div className="question-text">
+                            {isSpecialPlayer ? specialQuestion : mainQuestion}
+                        </div>
+                    </div>
+
+                    <div className="card">
+                        <div className="section-label">Vote — who does this describe?</div>
+                        <div className="vote-grid">
+                            {players.map((player) => (
+                                <button
+                                    key={player}
+                                    onClick={() => vote(player)}
+                                    className={`vote-btn ${votes[playerName] === player ? 'selected' : ''}`}
+                                >
+                                    {player}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
             )}
-
             {gameState === 'guessFake' && !noMoreQuestions && (
-                <div className="space-y-4">
-                    <h2 className="text-2xl font-semibold">Players: {players.length}</h2>
-                    <div className="space-y-2">
-                        {players.map((player) => (
-                            <div key={player} className="grid grid-cols-[50px_1fr_70px_100px] gap-2 text-lg items-center player-grid">
-                                <span className="font-bold">({points[player] || 0})</span>
-                                <span className={player === playerName ? 'underline truncate' : 'truncate'}>{player}</span>
-                                <span className="italic text text-right">Voted:</span>
-                                <span className="italic text truncate">{votes[player] || 'No vote'}</span>
-                            </div>
-                        ))}
+                <div>
+                    <div className="card">
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+                            <div className="section-label" style={{ marginBottom: 0 }}>Votes cast</div>
+                        </div>
+                        <PlayerList showVotes />
                     </div>
-                    <p className="text-lg"><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
-                    <p className="text-lg"><strong>Main Question: </strong>{mainQuestion}</p>
-                    {isSpecialPlayer ? (
-                        <p className="text-lg">Wait for everyone to finish voting</p>
-                    ) : (
-                        <>
-                            <p className="text-lg">Guess who had the fake question:</p>
-                            <div className="flex flex-wrap gap-2">
-                                {players.map((player) => (
-                                    <button
-                                        key={player}
-                                        onClick={() => guessVote(player)}
-                                        className={`px-4 py-2 rounded text-white ${guessVotes[playerName] === player ? 'bg-green-500' : 'bg-blue-500 hover:bg-blue-600'}`}
-                                    >
-                                        {player}
-                                    </button>
-                                ))}
-                            </div>
-                        </>
-                    )}
+
+                    <div className="question-card">
+                        <div className="question-tag">❓ Your Question</div>
+                        <div className="question-text">
+                            {isSpecialPlayer ? specialQuestion : mainQuestion}
+                        </div>
+                    </div>
+
+                    <div className="question-secondary">
+                        <div className="question-tag">📢 The Main Question</div>
+                        <div className="question-text" style={{ fontSize: '1rem' }}>{mainQuestion}</div>
+                    </div>
+
+                    <div className="card">
+                        <div className="section-label">Who had the fake question?</div>
+                        <div className="vote-grid">
+                            {players.map((player) => (
+                                <button
+                                    key={player}
+                                    onClick={() => guessVote(player)}
+                                    className={`vote-btn ${guessVotes[playerName] === player ? 'guess-selected' : ''}`}
+                                >
+                                    {player}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             )}
-
             {gameState === 'finalReveal' && !noMoreQuestions && (
-                <div className="space-y-4">
-                    <h2 className="text-2xl font-semibold">Players: {players.length}</h2>
-                    <div className="space-y-2">
-                        {players.map((player) => (
-                            <div key={player} className="grid grid-cols-[50px_1fr_70px_100px_70px_100px] gap-2 text-lg items-center player-grid">
-                                <span className="font-bold">({points[player] || 0})</span>
-                                <span className={player === playerName ? 'underline truncate' : 'truncate'}>{player}</span>
-                                <span className="italic text text-right">Voted:</span>
-                                <span className="italic text truncate">{votes[player] || 'None'}</span>
-                                <span className="italic text text-right">Guessed:</span>
-                                <span className="italic text truncate">{guessVotes[player] || 'None'}</span>
-                            </div>
-                        ))}
+                <div>
+                    <div className="reveal-imposter">
+                        <div className="reveal-imposter-label">The Imposter Was</div>
+                        <div className="reveal-imposter-name">{specialPlayer || 'Unknown'}</div>
                     </div>
-                    <p className="text-lg"><strong>Your Question: </strong>{isSpecialPlayer ? specialQuestion : mainQuestion}</p>
-                    <p className="text-lg"><strong>Main Question: </strong>{mainQuestion}</p>
-                    <p className="text-lg"><strong>Fake Question: </strong>{specialQuestion}</p>
-                    <p className="text-lg"><strong>Imposter: </strong>{specialPlayer || 'Unknown'}</p>
+
+                    <div className="card">
+                        <div className="question-tag" style={{ marginBottom: 6 }}>Main Question</div>
+                        <div className="question-text" style={{ fontSize: '1rem', marginBottom: 16 }}>{mainQuestion}</div>
+                        <div className="question-tag" style={{ color: COLORS.accentGreen, marginBottom: 6 }}>Fake Question</div>
+                        <div className="question-text" style={{ fontSize: '1rem', color: COLORS.accentGreen }}>{specialQuestion}</div>
+                    </div>
+
+                    <div className="card">
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 14 }}>
+                            <div className="section-label" style={{ marginBottom: 0 }}>Results</div>
+                        </div>
+                        <PlayerList showVotes showGuesses />
+                    </div>
+
                     {isOwner && (
-                        <button onClick={nextQuestion} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Next Question</button>
+                        <button onClick={nextQuestion} className="btn btn-green btn-full">
+                            ➡️ Next Question
+                        </button>
                     )}
                 </div>
             )}

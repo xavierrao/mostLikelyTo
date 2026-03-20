@@ -101,12 +101,26 @@ async function selectQuestion(gameId) {
                 .join('\n');
 
             const prompt = `
-        You are a game question generator. Return ONLY a valid JSON object with two fields: "question" and "specialQuestion". The "question" must be positive and aspirational, phrased as "Who is most likely to..." (e.g., "Who is most likely to win a Nobel Prize?"). The "specialQuestion" must be humorous or quirky, phrased as "Who is most likely to..." (e.g., "Who is most likely to forget their own name?"). Generate highly unique and varied questions, avoiding any repetition or similarity to previous outputs, examples, or common themes. Do NOT include any text, markdown, backticks, code blocks (e.g., \`\`\`json or \`\`\`), comments, explanations, or conversational responses like "I'm not sure" or "Could you explain". If you cannot generate the requested output, return an empty JSON object {}.
-        Examples:
-        ${exampleText}
-        Random seed for uniqueness: ${randomSeed}
-        Output: {"question": "<your unique question>", "specialQuestion": "<your unique special question>"}
-      `;
+                You are a creative party game question generator. Your job is to produce ONE unique JSON object per call.
+
+                Return ONLY a valid JSON object with exactly two fields: "question" and "specialQuestion".
+
+                Rules for BOTH "question" and "specialQuestion":
+                - Must start with "Who is most likely to"
+                - Must be equally plausible, interesting, and socially engaging
+                - Cover a wide range of themes: career achievements, travel, relationships, hobbies, talents, life milestones, fame, sports, food, technology, nature, art — rotate unpredictably
+                - Neither should be obviously funnier, sillier, or more serious than the other — a person seeing both without labels should have no idea which is which
+                - Must be thematically unrelated to each other to avoid giving either away
+
+                Do NOT output markdown, backticks, code blocks, comments, or any text outside the JSON object.
+                Do NOT repeat themes or phrasings you have used before in this session.
+                If you cannot comply, return {}.
+
+                Examples of good question pairs:
+                ${exampleText}
+
+                Random seed for uniqueness: ${randomSeed}
+            `;
 
             console.log(`Game ${gameId}: Prompt sent to Groq API (attempt ${attempt}):`, prompt);
 
@@ -350,25 +364,28 @@ io.on('connection', (socket) => {
         if (!games[gameId] || !games[gameId].players.includes(socket.playerName)) return;
         const game = games[gameId];
         if (game.state !== 'guessFake') return;
-        if (socket.playerName === game.specialPlayer) {
-            socket.emit('error', 'You cannot vote as the special player');
-            return;
-        }
         if (!game.players.includes(guessedPlayer)) {
             socket.emit('error', 'Invalid player selected');
             return;
         }
         game.guessVotes[socket.playerName] = guessedPlayer;
         console.log(`Game ${gameId}: ${socket.playerName} guessed ${guessedPlayer} had the fake question`);
-        const nonSpecialPlayers = game.players.filter(p => p !== game.specialPlayer);
-        if (Object.keys(game.guessVotes).length === nonSpecialPlayers.length) {
-            Object.keys(game.guessVotes).forEach(voter => {
-                if (game.guessVotes[voter] === game.specialPlayer) {
-                    game.points[voter] = (game.points[voter] || 0) + 1;
-                }
-            });
-            const nonVoters = nonSpecialPlayers.filter(p => game.guessVotes[p] !== game.specialPlayer);
-            game.points[game.specialPlayer] = (game.points[game.specialPlayer] || 0) + nonVoters.length;
+        if (Object.keys(game.guessVotes).length === game.players.length) {
+            const votesForImposter = Object.keys(game.guessVotes)
+                .filter(p => game.guessVotes[p] === game.specialPlayer);
+            const otherPlayers = game.players.filter(p => p !== game.specialPlayer);
+            const majorityGuessedImposter = votesForImposter.length >= Math.ceil(otherPlayers.length / 2);
+
+            if (majorityGuessedImposter) {
+                votesForImposter
+                    .filter(voter => voter !== game.specialPlayer)
+                    .forEach(voter => {
+                        game.points[voter] = (game.points[voter] || 0) + 1;
+                    });
+            } else {
+                const nonVoters = game.players.filter(p => game.guessVotes[p] !== game.specialPlayer);
+                game.points[game.specialPlayer] = (game.points[game.specialPlayer] || 0) + nonVoters.length;
+            }
             game.players.sort((a, b) => (game.points[b] || 0) - (game.points[a] || 0));
             game.state = 'finalReveal';
             game.players.forEach(player => {
