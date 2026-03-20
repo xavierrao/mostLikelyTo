@@ -1,7 +1,7 @@
 {
-  "name": "most-likely-to-game",
+  "name": "most-likely-to",
   "version": "1.0.0",
-  "description": "Most Likely To Game",
+  "description": "Most Likely To",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
