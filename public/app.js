@@ -189,21 +189,23 @@ const App = () => {
                 </div>
             )}
             {gameState === 'waiting' && (
-                <div className="card">
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
-                        <div className="section-label" style={{ marginBottom: 0 }}>Players</div>
-                        <span className="count-badge">{players.length}</span>
+                <div>
+                    <div className="card">
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
+                            <div className="section-label" style={{ marginBottom: 0 }}>Players</div>
+                            <span className="count-badge">{players.length}</span>
+                        </div>
+                        <p className="waiting-tip">🎯 Best with 3 or more players</p>
+                        <PlayerList />
+                        <hr className="divider" />
+                        {isOwner ? (
+                            <button onClick={startGame} className="btn btn-primary btn-full">
+                                🚀 Start Game
+                            </button>
+                        ) : (
+                            <p className="waiting-hint">⏳ Waiting for the host to start…</p>
+                        )}
                     </div>
-                    <p className="waiting-tip">🎯 Best with 3 or more players</p>
-                    <PlayerList />
-                    <hr className="divider" />
-                    {isOwner ? (
-                        <button onClick={startGame} className="btn btn-primary btn-full">
-                            🚀 Start Game
-                        </button>
-                    ) : (
-                        <p className="waiting-hint">⏳ Waiting for the host to start…</p>
-                    )}
                 </div>
             )}
             {gameState === 'question' && !noMoreQuestions && (
