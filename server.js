@@ -25,6 +25,9 @@ app.get('/', (req, res) => {
     console.log(`Serving index.html`);
     res.sendFile('index.html', { root: 'public' });
 });
+app.get('/faq', (req, res) => {
+    res.sendFile('faq.html', { root: 'public' });
+});
 
 const games = {};
 const gameTimeouts = {};
@@ -39,7 +42,6 @@ function resetGameTimeout(gameId) {
         delete gameTimeouts[gameId];
     }, GAME_TIMEOUT_MS);
 }
-
 
 let questionPool = [];
 try {

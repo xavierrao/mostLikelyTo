@@ -1,10 +1,20 @@
-const { useState, useEffect, useCallback } = React;
+const { useState, useEffect } = React;
 
 const COLORS = {
     accent: '#52796f',
     accentGreen: '#bc6c25',
     textMuted: '#7a8c82',
 };
+
+const HomeButton = ({ onClick }) => (
+    <button onClick={onClick} title="Go home" className="home-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        Home
+    </button>
+);
 
 const App = () => {
     const [socket, setSocket] = useState(null);
@@ -65,6 +75,16 @@ const App = () => {
         return () => newSocket.disconnect();
     }, [playerName]);
 
+    const goHome = () => {
+        setGameState('joining');
+        setGameId('');
+        setPlayers([]);
+        setPoints({});
+        setVotes({});
+        setGuessVotes({});
+        setSpecialPlayer(null);
+    };
+
     const createGame = () => {
         if (playerName.trim()) socket.emit('createGame', playerName);
         else { setError('Please enter your name'); setTimeout(() => setError(''), 5000); }
@@ -102,8 +122,12 @@ const App = () => {
         </div>
     );
 
+    const isInGame = gameState !== 'joining';
+
     return (
         <div className="app-wrap">
+            {isInGame && <HomeButton onClick={goHome} />}
+
             <h1 className="page-title">Most Likely To</h1>
             <p className="page-subtitle">The Social Deduction Party Game</p>
 
@@ -139,34 +163,38 @@ const App = () => {
                 </div>
             )}
             {gameState === 'joining' && (
-                <div className="card">
-                    <div className="section-label">Enter the game</div>
-                    <input
-                        className="input-field"
-                        type="text"
-                        placeholder="Your name"
-                        value={playerName}
-                        onChange={(e) => setPlayerName(e.target.value)}
-                    />
-                    <input
-                        className="input-field"
-                        type="text"
-                        placeholder="Game ID (leave blank to create)"
-                        value={gameId}
-                        onChange={(e) => setGameId(e.target.value)}
-                    />
-                    <div className="btn-row" style={{ marginTop: 4 }}>
-                        <button onClick={createGame} className="btn btn-primary">Create Game</button>
-                        <button onClick={joinGame} className="btn btn-secondary">Join Game</button>
+                <div>
+                    <div className="card">
+                        <div className="section-label">Enter the game</div>
+                        <input
+                            className="input-field"
+                            type="text"
+                            placeholder="Your name"
+                            value={playerName}
+                            onChange={(e) => setPlayerName(e.target.value)}
+                        />
+                        <input
+                            className="input-field"
+                            type="text"
+                            placeholder="Game ID (leave blank to create)"
+                            value={gameId}
+                            onChange={(e) => setGameId(e.target.value)}
+                        />
+                        <div className="btn-row" style={{ marginTop: 4 }}>
+                            <button onClick={createGame} className="btn btn-primary">Create Game</button>
+                            <button onClick={joinGame} className="btn btn-secondary">Join Game</button>
+                        </div>
                     </div>
+                    <p className="player-count-tip">🎯 Best played with 3 or more players</p>
                 </div>
             )}
             {gameState === 'waiting' && (
                 <div className="card">
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8 }}>
                         <div className="section-label" style={{ marginBottom: 0 }}>Players</div>
                         <span className="count-badge">{players.length}</span>
                     </div>
+                    <p className="waiting-tip">🎯 Best with 3 or more players</p>
                     <PlayerList />
                     <hr className="divider" />
                     {isOwner ? (

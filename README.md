@@ -76,6 +76,7 @@ Play the game at: [https://mostlikelyto.xavierrao.com/](https://mostlikelyto.xav
    - Scores are awarded and the imposter is revealed.
 4. **Next Round**: The game owner advances to the next question. Rounds continue until no more unique questions are available.
 5. **Leaving**: No formal "end" button — refresh or close the tab to leave.
+6. **FAQ**: Visit `/faq` for a full how-to-play guide and frequently asked questions.
 
 *Tip: Best experienced with 3+ players.*
 
@@ -85,6 +86,7 @@ Play the game at: [https://mostlikelyto.xavierrao.com/](https://mostlikelyto.xav
 ├── server.js          # Server, Socket.io events, game logic, AI question generation
 ├── public/
 │   ├── index.html     # Frontend entry point
+│   ├── faq.html       # FAQ & How to Play page (served at /faq)
 │   ├── app.js         # React UI
 │   └── styles.css     # Forest & Clay theme styles
 ├── questions.json     # Fallback question pool
@@ -122,6 +124,8 @@ This project is deployed on Render.com as a Node.js web service. To deploy your 
 4. Set start command: `node server.js`
 5. Add environment variable: `GROQ_API_KEY` with your key.
 6. Deploy! Render will provide a URL like `your-service.onrender.com`.
+
+> **Note**: Make sure your `server.js` includes a route for `/faq` — `app.get('/faq', (req, res) => res.sendFile('faq.html', { root: 'public' }))` — otherwise the FAQ page will return a 404.
 
 *Free Tier Notes*: Sleeps after 15 minutes of inactivity, may take 30-60 seconds to wake. Upgrade for always-on.
 
