@@ -550,3 +550,113 @@ body {
     color: #7a8c82;
     margin-bottom: 14px;
 }
+
+.spectator-bar {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #7a8c82;
+    margin-bottom: 8px;
+}
+
+.btn-row-top {
+    margin-top: 4px;
+}
+
+.players-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.players-header--mb14 {
+    margin-bottom: 14px;
+}
+
+.players-header .section-label {
+    margin-bottom: 0;
+}
+
+.copy-badge-wrap {
+    display: flex;
+    justify-content: center;
+    position: relative;
+}
+
+.game-id-badge {
+    cursor: pointer;
+}
+
+.copied-label {
+    margin-left: 6px;
+    color: #bc6c25;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.copy-icon {
+    margin-left: 6px;
+    width: 14px;
+    height: 14px;
+    opacity: 0.5;
+    flex-shrink: 0;
+}
+
+.copy-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff;
+    border: 1px solid #d6cfc6;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(45, 58, 53, 0.12);
+    z-index: 100;
+    min-width: 160px;
+    overflow: hidden;
+}
+
+.copy-menu-btn {
+    display: block;
+    width: 100%;
+    padding: 11px 18px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid #f0ebe4;
+    text-align: left;
+    font-size: 0.88rem;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    color: #2d3a35;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.copy-menu-btn:last-child {
+    border-bottom: none;
+}
+
+.copy-menu-btn:hover {
+    background: #f7f3ee;
+}
+
+.question-text--sm {
+    font-size: 1rem;
+}
+
+.question-text--accent {
+    font-size: 1rem;
+    color: #bc6c25;
+}
+
+.question-tag--mb6 {
+    margin-bottom: 6px;
+}
+
+.question-tag--accent {
+    color: #bc6c25;
+    margin-bottom: 6px;
+}
+
+.question-text--mb16 {
+    margin-bottom: 16px;
+}

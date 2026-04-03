@@ -28,10 +28,15 @@ app.get('/', (req, res) => {
 app.get('/faq', (req, res) => {
     res.sendFile('faq.html', { root: 'public' });
 });
+app.get('/game/:gameId', (req, res) => {
+    res.sendFile('index.html', { root: 'public' });
+});
 
 const games = {};
 const gameTimeouts = {};
+const disconnectTimers = {}; // grace-period timers keyed by "gameId:playerName"
 const GAME_TIMEOUT_MS = 60 * 60 * 1000;
+const DISCONNECT_GRACE_MS = 15 * 1000; // 15s to reconnect before being removed
 
 function resetGameTimeout(gameId) {
     if (gameTimeouts[gameId]) clearTimeout(gameTimeouts[gameId]);
@@ -267,11 +272,130 @@ function selectFromQuestionPool(gameId, game) {
     return selectedQuestion;
 }
 
+// Broadcast current game state to all active (non-spectator) players in the room,
+// sending each player their personalised isSpecialPlayer flag.
+function broadcastGameState(gameId) {
+    const game = games[gameId];
+    if (!game) return;
+    const everyone = [...game.players, ...game.spectators];
+    everyone.forEach(player => {
+        const playerSocket = Array.from(io.sockets.sockets.values())
+            .find(s => s.playerName === player && s.rooms.has(gameId));
+        if (playerSocket) {
+            playerSocket.emit('gameState', {
+                ...game,
+                gameId,
+                isSpecialPlayer: player === game.specialPlayer,
+                // Only reveal specialPlayer identity during finalReveal
+                specialPlayer: game.state === 'finalReveal' ? game.specialPlayer : null
+            });
+        }
+    });
+}
+
+// Check if all active players have voted/guessed and advance the phase if so.
+// "active" means in game.players (not spectators) and not in the grace-period queue.
+function checkVoteCompletion(gameId) {
+    const game = games[gameId];
+    if (!game) return;
+
+    if (game.state === 'question') {
+        const activeVotes = Object.keys(game.votes).filter(p => game.players.includes(p));
+        if (activeVotes.length === game.players.length) {
+            game.state = 'guessFake';
+            game.guessVotes = {};
+            broadcastGameState(gameId);
+        }
+    } else if (game.state === 'guessFake') {
+        const activeGuesses = Object.keys(game.guessVotes).filter(p => game.players.includes(p));
+        if (activeGuesses.length === game.players.length) {
+            resolveRound(gameId);
+        }
+    }
+}
+
+// Tally scores and move to finalReveal.
+function resolveRound(gameId) {
+    const game = games[gameId];
+    if (!game) return;
+
+    const votesForImposter = Object.keys(game.guessVotes)
+        .filter(p => game.players.includes(p) && game.guessVotes[p] === game.specialPlayer);
+    const otherPlayers = game.players.filter(p => p !== game.specialPlayer);
+    const majorityGuessedImposter = votesForImposter.length >= Math.ceil(otherPlayers.length / 2);
+
+    if (majorityGuessedImposter) {
+        votesForImposter
+            .filter(voter => voter !== game.specialPlayer)
+            .forEach(voter => { game.points[voter] = (game.points[voter] || 0) + 1; });
+    } else {
+        const nonVoters = game.players.filter(p => game.guessVotes[p] !== game.specialPlayer);
+        if (game.players.includes(game.specialPlayer)) {
+            game.points[game.specialPlayer] = (game.points[game.specialPlayer] || 0) + nonVoters.length;
+        }
+    }
+
+    game.players.sort((a, b) => (game.points[b] || 0) - (game.points[a] || 0));
+    game.state = 'finalReveal';
+    broadcastGameState(gameId);
+}
+
+// Remove a player from a game immediately, handling all side effects.
+function removePlayerFromGame(gameId, playerName) {
+    const g = games[gameId];
+    if (!g) return;
+
+    const playerIdx = g.players.indexOf(playerName);
+    const spectatorIdx = g.spectators.indexOf(playerName);
+    if (playerIdx === -1 && spectatorIdx === -1) return;
+
+    if (spectatorIdx !== -1) {
+        g.spectators.splice(spectatorIdx, 1);
+        delete g.points[playerName];
+        console.log(`Game ${gameId}: spectator ${playerName} removed`);
+        return;
+    }
+
+    g.players.splice(playerIdx, 1);
+    delete g.votes[playerName];
+    delete g.guessVotes[playerName];
+    delete g.points[playerName];
+    console.log(`Game ${gameId}: ${playerName} removed`);
+
+    if (g.players.length === 0) {
+        delete games[gameId];
+        return;
+    }
+
+    if (g.owner === playerName) {
+        g.owner = g.players[0];
+        console.log(`Game ${gameId}: Owner left — reassigned to ${g.owner}`);
+        io.to(gameId).emit('ownerChanged', { newOwner: g.owner });
+    }
+
+    const wasSpecialPlayer = g.specialPlayer === playerName;
+    const midRound = g.state === 'question' || g.state === 'guessFake';
+
+    if (wasSpecialPlayer && midRound) {
+        console.log(`Game ${gameId}: Special player left — forcing reveal`);
+        g.players.forEach(p => { if (!g.guessVotes[p]) g.guessVotes[p] = null; });
+        resolveRound(gameId);
+        return;
+    }
+
+    if (midRound) {
+        checkVoteCompletion(gameId);
+    } else {
+        broadcastGameState(gameId);
+    }
+}
+
 io.on('connection', (socket) => {
     socket.on('createGame', (playerName) => {
         const gameId = generateGameId();
         games[gameId] = {
             players: [playerName],
+            spectators: [],
             points: { [playerName]: 0 },
             state: 'waiting',
             owner: playerName,
@@ -285,7 +409,7 @@ io.on('connection', (socket) => {
         };
         socket.join(gameId);
         socket.playerName = playerName;
-        socket.emit('gameState', { ...games[gameId], gameId });
+        broadcastGameState(gameId);
         resetGameTimeout(gameId);
     });
 
@@ -294,16 +418,33 @@ io.on('connection', (socket) => {
             socket.emit('error', 'Game not found');
             return;
         }
-        if (games[gameId].players.includes(playerName)) {
+        const game = games[gameId];
+        if (game.players.includes(playerName) || game.spectators.includes(playerName)) {
             socket.emit('error', 'Name already taken');
             return;
         }
-        games[gameId].players.push(playerName);
-        games[gameId].points[playerName] = 0;
-        games[gameId].state = 'waiting';
         socket.join(gameId);
         socket.playerName = playerName;
-        io.to(gameId).emit('gameState', games[gameId]);
+
+        if (game.state !== 'waiting') {
+            // Round in progress — join as spectator
+            game.spectators.push(playerName);
+            game.points[playerName] = 0;
+            console.log(`Game ${gameId}: ${playerName} joined as spectator (round in progress)`);
+            socket.emit('gameState', {
+                ...game,
+                gameId,
+                isSpecialPlayer: false,
+                specialPlayer: game.state === 'finalReveal' ? game.specialPlayer : null,
+                isSpectator: true
+            });
+            // Tell existing players someone joined to watch
+            socket.to(gameId).emit('spectatorJoined', { playerName });
+        } else {
+            game.players.push(playerName);
+            game.points[playerName] = 0;
+            broadcastGameState(gameId);
+        }
         resetGameTimeout(gameId);
     });
 
@@ -313,6 +454,11 @@ io.on('connection', (socket) => {
             return;
         }
         const game = games[gameId];
+        // Promote any spectators who were waiting in the lobby
+        if (game.spectators.length > 0) {
+            game.players.push(...game.spectators);
+            game.spectators = [];
+        }
         game.state = 'question';
         game.votes = {};
         game.guessVotes = {};
@@ -322,21 +468,10 @@ io.on('connection', (socket) => {
             return;
         }
         game.mainQuestion = questionObj.question;
-        console.log(`Game ${gameId}: Set mainQuestion to ${game.mainQuestion}`);
         game.specialPlayer = game.players[Math.floor(Math.random() * game.players.length)];
         game.specialQuestion = questionObj.specialQuestion;
-        console.log(`Game ${gameId}: Special player selected: ${game.specialPlayer}`);
-        game.players.forEach(player => {
-            const playerSocket = Array.from(io.sockets.sockets.values())
-                .find(s => s.playerName === player && s.rooms.has(gameId));
-            if (playerSocket) {
-                playerSocket.emit('gameState', {
-                    ...game,
-                    isSpecialPlayer: player === game.specialPlayer,
-                    specialPlayer: game.specialPlayer
-                });
-            }
-        });
+        console.log(`Game ${gameId}: Started. Special player: ${game.specialPlayer}`);
+        broadcastGameState(gameId);
         resetGameTimeout(gameId);
     });
 
@@ -350,33 +485,8 @@ io.on('connection', (socket) => {
         }
         game.votes[socket.playerName] = votedPlayer;
         console.log(`Game ${gameId}: ${socket.playerName} voted for ${votedPlayer}`);
-        if (Object.keys(game.votes).length === game.players.length) {
-            game.state = 'guessFake';
-            game.guessVotes = {};
-            game.players.forEach(player => {
-                const playerSocket = Array.from(io.sockets.sockets.values())
-                    .find(s => s.playerName === player && s.rooms.has(gameId));
-                if (playerSocket) {
-                    playerSocket.emit('gameState', {
-                        ...game,
-                        isSpecialPlayer: player === game.specialPlayer,
-                        specialPlayer: game.specialPlayer
-                    });
-                }
-            });
-        } else {
-            game.players.forEach(player => {
-                const playerSocket = Array.from(io.sockets.sockets.values())
-                    .find(s => s.playerName === player && s.rooms.has(gameId));
-                if (playerSocket) {
-                    playerSocket.emit('gameState', {
-                        ...game,
-                        isSpecialPlayer: player === game.specialPlayer,
-                        specialPlayer: game.specialPlayer
-                    });
-                }
-            });
-        }
+        broadcastGameState(gameId);
+        checkVoteCompletion(gameId);
         resetGameTimeout(gameId);
     });
 
@@ -390,48 +500,8 @@ io.on('connection', (socket) => {
         }
         game.guessVotes[socket.playerName] = guessedPlayer;
         console.log(`Game ${gameId}: ${socket.playerName} guessed ${guessedPlayer} had the fake question`);
-        if (Object.keys(game.guessVotes).length === game.players.length) {
-            const votesForImposter = Object.keys(game.guessVotes)
-                .filter(p => game.guessVotes[p] === game.specialPlayer);
-            const otherPlayers = game.players.filter(p => p !== game.specialPlayer);
-            const majorityGuessedImposter = votesForImposter.length >= Math.ceil(otherPlayers.length / 2);
-
-            if (majorityGuessedImposter) {
-                votesForImposter
-                    .filter(voter => voter !== game.specialPlayer)
-                    .forEach(voter => {
-                        game.points[voter] = (game.points[voter] || 0) + 1;
-                    });
-            } else {
-                const nonVoters = game.players.filter(p => game.guessVotes[p] !== game.specialPlayer);
-                game.points[game.specialPlayer] = (game.points[game.specialPlayer] || 0) + nonVoters.length;
-            }
-            game.players.sort((a, b) => (game.points[b] || 0) - (game.points[a] || 0));
-            game.state = 'finalReveal';
-            game.players.forEach(player => {
-                const playerSocket = Array.from(io.sockets.sockets.values())
-                    .find(s => s.playerName === player && s.rooms.has(gameId));
-                if (playerSocket) {
-                    playerSocket.emit('gameState', {
-                        ...game,
-                        isSpecialPlayer: player === game.specialPlayer,
-                        specialPlayer: game.specialPlayer
-                    });
-                }
-            });
-        } else {
-            game.players.forEach(player => {
-                const playerSocket = Array.from(io.sockets.sockets.values())
-                    .find(s => s.playerName === player && s.rooms.has(gameId));
-                if (playerSocket) {
-                    playerSocket.emit('gameState', {
-                        ...game,
-                        isSpecialPlayer: player === game.specialPlayer,
-                        specialPlayer: game.specialPlayer
-                    });
-                }
-            });
-        }
+        broadcastGameState(gameId);
+        checkVoteCompletion(gameId);
         resetGameTimeout(gameId);
     });
 
@@ -442,6 +512,13 @@ io.on('connection', (socket) => {
         }
         const game = games[gameId];
         if (game.state !== 'finalReveal') return;
+
+        // Promote spectators into the next round
+        if (game.spectators.length > 0) {
+            game.players.push(...game.spectators);
+            game.spectators = [];
+        }
+
         game.state = 'question';
         game.votes = {};
         game.guessVotes = {};
@@ -451,41 +528,107 @@ io.on('connection', (socket) => {
             return;
         }
         game.mainQuestion = questionObj.question;
-        console.log(`Game ${gameId}: Set mainQuestion to ${game.mainQuestion}`);
         game.specialPlayer = game.players[Math.floor(Math.random() * game.players.length)];
         game.specialQuestion = questionObj.specialQuestion;
-        console.log(`Game ${gameId}: Special player selected: ${game.specialPlayer}`);
-        game.players.forEach(player => {
-            const playerSocket = Array.from(io.sockets.sockets.values())
-                .find(s => s.playerName === player && s.rooms.has(gameId));
-            if (playerSocket) {
-                playerSocket.emit('gameState', {
+        console.log(`Game ${gameId}: Next round. Special player: ${game.specialPlayer}`);
+        broadcastGameState(gameId);
+        resetGameTimeout(gameId);
+    });
+
+    socket.on('rejoinGame', ({ gameId, playerName }) => {
+        const game = games[gameId];
+        if (!game) {
+            socket.emit('error', 'Game not found');
+            return;
+        }
+
+        // Cancel any pending removal for this player
+        const timerKey = `${gameId}:${playerName}`;
+        if (disconnectTimers[timerKey]) {
+            clearTimeout(disconnectTimers[timerKey]);
+            delete disconnectTimers[timerKey];
+            console.log(`Game ${gameId}: ${playerName} rejoined before grace period expired`);
+        }
+
+        socket.join(gameId);
+        socket.playerName = playerName;
+
+        const isPlayer = game.players.includes(playerName);
+        const isSpectator = game.spectators.includes(playerName);
+
+        if (!isPlayer && !isSpectator) {
+            // Grace period expired and they were fully removed — re-add appropriately
+            if (game.state === 'waiting') {
+                game.players.push(playerName);
+                game.points[playerName] = 0;
+            } else {
+                // Mid-round: re-add as spectator
+                game.spectators.push(playerName);
+                game.points[playerName] = 0;
+                socket.emit('gameState', {
                     ...game,
-                    isSpecialPlayer: player === game.specialPlayer,
-                    specialPlayer: game.specialPlayer
+                    gameId,
+                    isSpecialPlayer: false,
+                    specialPlayer: game.state === 'finalReveal' ? game.specialPlayer : null,
+                    isSpectator: true
                 });
+                console.log(`Game ${gameId}: ${playerName} re-added as spectator after grace period`);
+                return;
             }
+        }
+
+        // Send personalised state — spectators get isSpectator flag
+        const spectating = game.spectators.includes(playerName);
+        socket.emit('gameState', {
+            ...game,
+            gameId,
+            isSpecialPlayer: !spectating && game.specialPlayer === playerName,
+            specialPlayer: game.state === 'finalReveal' ? game.specialPlayer : null,
+            isSpectator: spectating
         });
         resetGameTimeout(gameId);
+        console.log(`Game ${gameId}: ${playerName} successfully rejoined (spectator: ${spectating})`);
+    });
+
+    socket.on('leaveGame', ({ gameId, playerName: payloadName }) => {
+        const game = games[gameId];
+        if (!game) return;
+        const playerName = socket.playerName || payloadName;
+        if (!playerName) return;
+
+        socket.leave(gameId);
+        socket.playerName = null;
+
+        // Start grace period — same as a disconnect
+        const timerKey = `${gameId}:${playerName}`;
+        if (disconnectTimers[timerKey]) {
+            clearTimeout(disconnectTimers[timerKey]);
+        }
+        console.log(`Game ${gameId}: ${playerName} left — starting ${DISCONNECT_GRACE_MS / 1000}s grace period`);
+        disconnectTimers[timerKey] = setTimeout(() => {
+            delete disconnectTimers[timerKey];
+            removePlayerFromGame(gameId, playerName);
+        }, DISCONNECT_GRACE_MS);
     });
 
     socket.on('disconnect', () => {
         for (const gameId in games) {
             const game = games[gameId];
-            const index = game.players.indexOf(socket.playerName);
-            if (index !== -1) {
-                game.players.splice(index, 1);
-                delete game.votes[socket.playerName];
-                delete game.guessVotes[socket.playerName];
-                delete game.points[socket.playerName];
-                if (game.players.length === 0) {
-                    delete games[gameId];
-                } else {
-                    game.state = game.players.length > 1 ? 'waiting' : 'joining';
-                    game.players.sort((a, b) => (game.points[b] || 0) - (game.points[a] || 0));
-                    io.to(gameId).emit('gameState', { ...game, specialPlayer: game.specialPlayer });
-                }
-            }
+            const isPlayer = game.players.includes(socket.playerName);
+            const isSpectator = game.spectators.includes(socket.playerName);
+            if (!isPlayer && !isSpectator) continue;
+
+            const playerName = socket.playerName;
+            const timerKey = `${gameId}:${playerName}`;
+
+            // If leaveGame already started a grace period, don't start another
+            if (disconnectTimers[timerKey]) continue;
+
+            console.log(`Game ${gameId}: ${playerName} disconnected — starting ${DISCONNECT_GRACE_MS / 1000}s grace period`);
+            disconnectTimers[timerKey] = setTimeout(() => {
+                delete disconnectTimers[timerKey];
+                removePlayerFromGame(gameId, playerName);
+            }, DISCONNECT_GRACE_MS);
         }
     });
 

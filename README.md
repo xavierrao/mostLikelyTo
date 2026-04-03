@@ -24,10 +24,12 @@ Play the game at: [https://mostlikelyto.xavierrao.com/](https://mostlikelyto.xav
   - If the majority correctly identifies the imposter, each correct guesser earns 1 point. The imposter earns nothing.
   - If the majority fails to identify the imposter, the imposter earns 1 point per incorrect guess.
   - The imposter cannot earn points from guessing themselves correctly.
-- **Responsive UI**: Mobile-friendly React interface
+- **Reconnection & Grace Period**: Players who disconnect, close the tab, navigate away, or click the home button are given a 15-second grace period to rejoin before being removed from the game.
+- **Persistent Game URLs**: Each game has a unique URL (e.g. `/game/abc1234`). Refreshing or sharing the link lets players return to their game automatically.
+- **Spectator Mode**: Players who join mid-round spectate until the next round begins, without disrupting the current game.
+- **Owner Reassignment**: If the game owner leaves, the next player automatically becomes the new owner.
+- **Responsive UI**: Mobile-friendly React interface.
 - **Automatic Cleanup**: Inactive games are automatically deleted after 1 hour to prevent memory buildup.
-
-
 
 ## Prerequisites
 
@@ -67,15 +69,15 @@ Play the game at: [https://mostlikelyto.xavierrao.com/](https://mostlikelyto.xav
 ## Usage
 
 1. **Create a Game**: Enter your name and click "Create Game" to generate a unique game ID. Tap the game ID badge to copy it to your clipboard.
-2. **Join a Game**: Share the game ID with friends. They enter their name and the ID to join.
+2. **Join a Game**: Share the game ID or the full game URL with friends. They enter their name and the ID to join.
 3. **Start Playing**:
    - The game owner starts the round.
    - Each player sees a question — one player secretly sees a different one.
    - Vote on who you think the question describes.
    - In the guess phase, vote on who you think had the fake question.
    - Scores are awarded and the imposter is revealed.
-4. **Next Round**: The game owner advances to the next question. Rounds continue until no more unique questions are available.
-5. **Leaving**: No formal "end" button — refresh or close the tab to leave.
+4. **Next Round**: The game owner advances to the next question. Any spectators are promoted to players at the start of each round.
+5. **Leaving & Rejoining**: Closing the tab, navigating away, or clicking the home button gives you a 15-second window to return. Navigate back to the game URL or re-enter the game ID to rejoin. Your name is saved automatically.
 6. **FAQ**: Visit `/faq` for a full how-to-play guide and frequently asked questions.
 
 *Tip: Best experienced with 3+ players.*
@@ -136,6 +138,7 @@ This project is deployed on Render.com as a Node.js web service. To deploy your 
 - **Styles not loading**: Make sure you're accessing the app via `http://localhost:3000` and not opening `index.html` directly as a file.
 - **Duplicate Questions**: The server uses string similarity checks and a global set to avoid repeats, but with heavy use it may fall back to the JSON pool.
 - **Errors in Console**: Check for API rate limits or memory issues (free Render tier has limits).
+- **Can't rejoin a game**: Your player name is saved in `localStorage` — make sure you're using the same browser. If the game expired (1 hour of inactivity) you'll be returned to the home screen.
 
 ## Contributing
 
